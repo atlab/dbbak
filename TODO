@@ -6,8 +6,3 @@
 - restore logic, e.g:
   dbbak list
   restore full.prev.3
-- theoretically, innobackupex can handle incrementals if only a single
-  most recent incremental is available in storage; current logic checks
-  for the initial full backup and so may be too strict in some cases.
-  incremental should handle these cases, although this could have a bearing
-  on rotation logic, etc...

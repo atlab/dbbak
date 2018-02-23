@@ -5,7 +5,7 @@ default:
 install:
 	@echo "installing dbbak..."
 	@[ ! -f "/etc/dbbak.cfg" ] \
-	&& install -o root -g root -m 644 dbbak.cfg.in /etc/dbbak.cfg \
+	&& install -o root -g root -m 640 dbbak.cfg.in /etc/dbbak.cfg \
 	|| ( \
 		echo "note: merge /etc/dbbak.cfg.upgrade if needed!"; \
 		install -o root -g root -m 644 dbbak.cfg.in /etc/dbbak.cfg.upgrade \

@@ -26,13 +26,17 @@ exists, a warning message is printed and the script exits with an
 error; see 'backup rotation' for further details about managing
 this situation.
 
+Backup details will be logged to DBBAK_BKDIR/full.log.
+
 Setting DBBAK_NOLOCK to any value will imply that innobackupex
 should use the '--no-lock' argument; the same setting also applies
-to incremental backups.  Discussion of the implications of this
-argument to backup consistency are beyond the scope of this document;
-see the innobackupex and MySQL documentation for related details.
-
-Backup details will be logged to DBBAK_BKDIR/full.log.
+to incremental backups.  If DBBAK_NOLOCK is configured, manual
+effort should be taken that table structure modifications during
+the backup run are properly verified; If this flag is enabled, dbbak
+will attempt to detect .frm files modified during the backup run
+to assist with this effort.  For details concerning the precise
+implications of enabling this argument see the innobackupex and
+MySQL documentation.
 
 incremental backup
 ------------------

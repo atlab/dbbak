@@ -59,15 +59,30 @@ parse_cfg() {
 
 	DBBAK_FULL="${DBBAK_BKDIR}/full"
 	DBBAK_FULL_LOG="${DBBAK_FULL}.log"
+	DBBAK_FULL_STAMP="${DBBAK_FULL}.stamp"
 
 	DBBAK_PREV="${DBBAK_BKDIR}/full.prev"
 	DBBAK_PREV_LOG="${DBBAK_PREV}.log"
+	DBBAK_PREV_STAMP="${DBBAK_PREV}.stamp"
 
 	DBBAK_INCRBASE="${DBBAK_BKDIR}/incr"
 	set_incrs;
 
 	DBBAK_INCR="${DBBAK_INCRBASE}.${DBBAK_CUR_INCR}"
 	DBBAK_INCR_LOG="${DBBAK_INCR}.log"
+	DBBAK_INCR_STAMP="${DBBAK_INCR}.stamp"
+
+	DBBAK_START="`date '+%s'`"
+}
+
+show_cfg() {
+	echo "# ${me} config:"
+	echo "# DBBAK_USER=${DBBAK_USER}"
+	echo "# DBBAK_SOCKET=${DBBAK_SOCKET}"
+	echo "# DBBAK_DBDIR=${DBBAK_DBDIR}"
+	echo "# DBBAK_BKDIR=${DBBAK_BKDIR}"
+	echo "# DBBAK_NOLOCK=${DBBAK_NOLOCK}"
+	echo "# DBBAK_START=${DBBAK_START}"
 }
 
 do_countdown() {
@@ -89,12 +104,18 @@ cmd_full() {
 		exit 1;
 	fi
 	echo -n "$me: saving full backup to ${DBBAK_FULL}: "
+
+	echo "# dbbak full run" > ${DBBAK_FULL_LOG} 2>&1;
+	show_cfg >> ${DBBAK_FULL_LOG} 2>&1;	
+
+	echo ${DBBAK_START} > ${DBBAK_FULL_STAMP};
+
 	innobackupex \
 		--user=${DBBAK_USER} \
 		--password=${DBBAK_PASSWORD} \
 		--socket=${DBBAK_SOCKET} \
 		${DBBAK_NOLOCK} \
-		--no-timestamp ${DBBAK_FULL} > ${DBBAK_FULL_LOG} 2>&1;
+		--no-timestamp ${DBBAK_FULL} >> ${DBBAK_FULL_LOG} 2>&1;
 
 	return=$?
 	tail -n 1 ${DBBAK_FULL_LOG} |grep -q 'completed OK'
@@ -108,6 +129,18 @@ cmd_full() {
 		exit $return;
 	else
 		echo "ok."
+	fi
+
+	if [ ! -z "${DBBAK_NOLOCK}" ]; then
+		echo "# ${me} stamp file:" 2>&1 |tee -a ${DBBAK_FULL_LOG};
+		ls -l ${DBBAK_FULL_STAMP} 2>&1 |tee -a ${DBBAK_FULL_LOG};
+
+		echo "# tables possibly modified during run:" \
+			2>&1 |tee -a ${DBBAK_FULL_LOG};
+		find ${DBBAK_DBDIR} -type f -name '*.frm' \
+			-newer ${DBBAK_FULL_STAMP} -exec ls -l {} \; \
+			2>&1 |tee -a ${DBBAK_FULL_LOG};
+		echo "# ok." 2>&1 |tee -a ${DBBAK_FULL_LOG};
 	fi
 }
 
@@ -128,6 +161,13 @@ cmd_incremental() {
 
 	echo -n "$me: incremental backup ${DBBAK_LAST} to ${DBBAK_INCR}: "
 
+	echo "# dbbak incremental run" > ${DBBAK_INCR_LOG} 2>&1;
+	show_cfg >> ${DBBAK_INCR_LOG} 2>&1;	
+	echo "# DBBAK_LAST=${DBBAK_LAST}" >> ${DBBAK_INCR_LOG} 2>&1;	
+	echo "# DBBAK_INCR=${DBBAK_INCR}" >> ${DBBAK_INCR_LOG} 2>&1;	
+
+	echo ${DBBAK_START} > ${DBBAK_INCR_STAMP};
+
 	innobackupex \
 		--user=${DBBAK_USER} \
 		--password=${DBBAK_PASSWORD} \
@@ -136,7 +176,7 @@ cmd_incremental() {
 		--no-timestamp \
 		--incremental-basedir=${DBBAK_LAST} \
 		--incremental ${DBBAK_INCR} \
-		> ${DBBAK_INCR_LOG} 2>&1
+		>> ${DBBAK_INCR_LOG} 2>&1
 
 	return=$?
 	tail -n 1 ${DBBAK_INCR_LOG} |grep -q 'completed OK'
@@ -150,6 +190,18 @@ cmd_incremental() {
 		exit $return;
 	else
 		echo "ok."
+	fi
+
+	if [ ! -z "${DBBAK_NOLOCK}" ]; then
+		echo "# ${me} stamp file:" 2>&1 |tee -a ${DBBAK_INCR_LOG};
+		ls -l ${DBBAK_INCR_STAMP} 2>&1 |tee -a ${DBBAK_INCR_LOG};
+
+		echo "# tables possibly modified during run:" \
+			2>&1 |tee -a ${DBBAK_INCR_LOG};
+		find ${DBBAK_DBDIR} -type f -name '*.frm' \
+			-newer ${DBBAK_FULL_STAMP} -exec ls -l {} \; \
+			2>&1 |tee -a ${DBBAK_INCR_LOG};
+		echo "# ok." 2>&1 |tee -a ${DBBAK_INCR_LOG};
 	fi
 }
 
@@ -176,12 +228,19 @@ cmd_rotate() {
 		DBBAK_ROTATE_LOG="${DBBAK_INCRBASE}.${incr}.log";
 		DBBAK_ROTATE_PREV_LOG="${DBBAK_INCRBASE}.${incr}.log.prev";
 
+		DBBAK_ROTATE_STAMP="${DBBAK_INCRBASE}.${incr}.stamp";
+		DBBAK_ROTATE_PREV_STAMP="${DBBAK_INCRBASE}.${incr}.stamp.prev";
+
 		echo -n "$me: moving ${DBBAK_ROTATE} to ${DBBAK_ROTATE_PREV}: "
 		mv ${DBBAK_ROTATE} ${DBBAK_ROTATE_PREV}
 		[ "$?" -eq "0" ] && echo "ok." || echo "ERROR!"
 
 		echo -n "$me: moving ${DBBAK_ROTATE_LOG} to ${DBBAK_ROTATE_PREV_LOG}: "
 		mv ${DBBAK_ROTATE_LOG} ${DBBAK_ROTATE_PREV_LOG}
+		[ "$?" -eq "0" ] && echo "ok." || echo "ERROR!"
+
+		echo -n "$me: moving ${DBBAK_ROTATE_STAMP} to ${DBBAK_ROTATE_PREV_STAMP}: "
+		mv ${DBBAK_ROTATE_STAMP} ${DBBAK_ROTATE_PREV_STAMP}
 		[ "$?" -eq "0" ] && echo "ok." || echo "ERROR!"
 	done
 
@@ -191,6 +250,10 @@ cmd_rotate() {
 
 	echo -n "$me: moving ${DBBAK_FULL_LOG} to ${DBBAK_PREV_LOG}: "
 	mv ${DBBAK_FULL_LOG} ${DBBAK_PREV_LOG}
+	[ "$?" -eq "0" ] && echo "ok." || echo "ERROR!"
+
+	echo -n "$me: moving ${DBBAK_FULL_STAMP} to ${DBBAK_PREV_STAMP}: "
+	mv ${DBBAK_FULL_STAMP} ${DBBAK_PREV_STAMP}
 	[ "$?" -eq "0" ] && echo "ok." || echo "ERROR!"
 
 }
@@ -211,13 +274,14 @@ cmd_purge() {
 		echo "PREV: ${prev}"
 		DBBAK_ROTATE_PREV="${DBBAK_INCRBASE}.${incr}.prev";
 		DBBAK_ROTATE_PREV_LOG="${DBBAK_INCRBASE}.${incr}.log.prev";
-		echo -n "$me: removing ${DBBAK_ROTATE_PREV} ${DBBAK_ROTATE_PREV_LOG}: "
+		DBBAK_ROTATE_PREV_STAMP="${DBBAK_INCRBASE}.${incr}.stamp.prev";
+		echo -n "$me: removing ${DBBAK_ROTATE_PREV} ${DBBAK_ROTATE_PREV_LOG} ${DBBAK_ROTATE_PREV_STAMP}: "
 		rm -rf ${DBBAK_ROTATE_PREV} ${DBBAK_ROTATE_PREV_LOG}
 		[ "$?" -eq "0" ] && echo "ok." || echo "ERROR!"
 	done
 
-	echo -n "$me: removing ${DBBAK_PREV} ${DBBAK_PREV_LOG}: "
-	rm -rf ${DBBAK_PREV} ${DBBAK_PREV_LOG}
+	echo -n "$me: removing ${DBBAK_PREV} ${DBBAK_PREV_LOG} ${DBBAK_PREV_STAMP}: "
+	rm -rf ${DBBAK_PREV} ${DBBAK_PREV_LOG} ${DBBAK_PREV_STAMP}
 	[ "$?" -eq "0" ] && echo "ok." || echo "ERROR!"
 }
 

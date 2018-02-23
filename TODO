@@ -1,4 +1,3 @@
-- vars; .stamp & .frm delta file finding to log
 - multi support or config arg
 - example simple 2-weekly full + daily incrmental crontab
 - better/cleaner handling of rotation variables

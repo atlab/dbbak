@@ -28,6 +28,25 @@ set_incrs() {
 	DBBAK_CUR_INCR=$((DBBAK_MAX_INCR + 1))
 }
 
+set_prevs() {
+	set -- ${DBBAK_INCRBASE}.[0-9].prev \
+		${DBBAK_INCRBASE}.[0-9][0-9].prev \
+		${DBBAK_INCRBASE}.[0-9][0-9][0-9].prev
+
+	DBBAK_MAX_PREV='-1'; DBBAK_PREVS='';
+	for x; do 
+		if [ -d "$x" ]; then
+ 			id=${x%.prev}; # zap .prev
+ 			id=${id##*.}; # get trailing digit
+			DBBAK_PREVS="$DBBAK_PREVS $id"
+			[ "$id" -gt "$DBBAK_MAX_PREV" ] \
+				&& DBBAK_MAX_PREV="$id"
+		fi
+	done
+
+	DBBAK_CUR_PREV=$((DBBAK_MAX_PREV + 1))
+}
+
 parse_cfg() {
 	cfg="/etc/${me}.cfg"
 	[ ! -f "$cfg" ] && cfg_exit $cfg || . $cfg
@@ -152,10 +171,10 @@ cmd_rotate() {
 
 	for incr in ${DBBAK_INCRS}; do
 		DBBAK_ROTATE="${DBBAK_INCRBASE}.${incr}";
-		DBBAK_ROTATE_PREV="${DBBAK_INCRBASE}.prev.${incr}";
+		DBBAK_ROTATE_PREV="${DBBAK_INCRBASE}.${incr}.prev";
 
 		DBBAK_ROTATE_LOG="${DBBAK_INCRBASE}.${incr}.log";
-		DBBAK_ROTATE_PREV_LOG="${DBBAK_INCRBASE}.prev.${incr}.log";
+		DBBAK_ROTATE_PREV_LOG="${DBBAK_INCRBASE}.${incr}.log.prev";
 
 		echo -n "$me: moving ${DBBAK_ROTATE} to ${DBBAK_ROTATE_PREV}: "
 		mv ${DBBAK_ROTATE} ${DBBAK_ROTATE_PREV}
@@ -186,13 +205,12 @@ cmd_purge() {
 
 	do_countdown "purge";
 
-	DBBAK_INCRBASE="${DBBAK_INCRBASE}.prev";  # XXX: taints w/r/t orig...
-	set_incrs;
+	set_prevs;
 
-	for incr in ${DBBAK_INCRS}; do
-		echo "INCR: ${incr}"
-		DBBAK_ROTATE_PREV="${DBBAK_INCRBASE}.${incr}";
-		DBBAK_ROTATE_PREV_LOG="${DBBAK_INCRBASE}.${incr}.log";
+	for incr in ${DBBAK_PREVS}; do
+		echo "PREV: ${prev}"
+		DBBAK_ROTATE_PREV="${DBBAK_INCRBASE}.${incr}.prev";
+		DBBAK_ROTATE_PREV_LOG="${DBBAK_INCRBASE}.${incr}.log.prev";
 		echo -n "$me: removing ${DBBAK_ROTATE_PREV} ${DBBAK_ROTATE_PREV_LOG}: "
 		rm -rf ${DBBAK_ROTATE_PREV} ${DBBAK_ROTATE_PREV_LOG}
 		[ "$?" -eq "0" ] && echo "ok." || echo "ERROR!"

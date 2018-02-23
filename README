@@ -79,7 +79,7 @@ Since dbbak views the current full backup and its related incrementals
 as a set, the rotation is performed on the entire collection of
 existing backups, such that DBBAK_BKDIR/full becomes DBBAK_BKDIR/full.prev,
 and the associated incremental backups DBBAK_BKDIR/incr.N become
-DBBAK_BKDIR/incr.prev.N, etc. Logfiles are also rotated according
+DBBAK_BKDIR/incr.N.prev, etc. Logfiles are also rotated according
 to the same scheme.
 
 The `dbbak` script only manages one rotation of the backup set;

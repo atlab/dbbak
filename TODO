@@ -1,4 +1,3 @@
-- document
 - incr.prev.0 should be 0.prev, etc.
 - vars; .stamp & .frm delta file finding to log
 - multi support or config arg

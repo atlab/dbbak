@@ -1,0 +1,220 @@
+#! /bin/sh
+
+usage_exit() {
+	echo "usage: $me [full|incremental|rotate|purge]"
+	exit 0;
+}
+
+cfg_exit() {
+	echo "$me: invalid configuration: missing $1";
+	exit 1;
+}
+
+set_incrs() {
+	set -- ${DBBAK_INCRBASE}.[0-9] \
+		${DBBAK_INCRBASE}.[0-9][0-9] \
+		${DBBAK_INCRBASE}.[0-9][0-9][0-9]
+
+	DBBAK_MAX_INCR='-1'; DBBAK_INCRS='';
+	for x; do 
+		if [ -d "$x" ]; then
+ 			id=${x##*.};  # id is trailing digit after '.'
+			DBBAK_INCRS="$DBBAK_INCRS $id"
+			[ "$id" -gt "$DBBAK_MAX_INCR" ] \
+				&& DBBAK_MAX_INCR="$id"
+		fi
+	done
+
+	DBBAK_CUR_INCR=$((DBBAK_MAX_INCR + 1))
+}
+
+parse_cfg() {
+	cfg="/etc/${me}.cfg"
+	[ ! -f "$cfg" ] && cfg_exit $cfg || . $cfg
+	[ -z "${DBBAK_USER}" ] && cfg_exit "DBBAK_USER"
+	[ -z "${DBBAK_PASSWORD}" ] && cfg_exit "DBBAK_PASSWORD"
+	[ -z "${DBBAK_SOCKET}" ] && cfg_exit "DBBAK_SOCKET"
+	[ -z "${DBBAK_DBDIR}" ] && cfg_exit "DBBAK_DBDIR"
+	[ -z "${DBBAK_BKDIR}" ] && cfg_exit "DBBAK_BKDIR"
+	[ ! -z "${DBBAK_NOLOCK}" ] && DBBAK_NOLOCK="--no-lock"
+
+	DBBAK_FULL="${DBBAK_BKDIR}/full"
+	DBBAK_FULL_LOG="${DBBAK_FULL}.log"
+
+	DBBAK_PREV="${DBBAK_BKDIR}/full.prev"
+	DBBAK_PREV_LOG="${DBBAK_PREV}.log"
+
+	DBBAK_INCRBASE="${DBBAK_BKDIR}/incr"
+	set_incrs;
+
+	DBBAK_INCR="${DBBAK_INCRBASE}.${DBBAK_CUR_INCR}"
+	DBBAK_INCR_LOG="${DBBAK_INCR}.log"
+}
+
+do_countdown() {
+	if [ -t 0 ]; then  # countdown only for interactive
+		echo "Warning!: $me $1 proceeding in 5 seconds."
+		echo ".. interrupt (^C) to cancel."
+		for x in 5 4 3 2 1; do
+			echo -n "..${x}";
+			sleep 1;
+		done
+		echo "..ok!";
+	fi
+}
+
+cmd_full() {
+	# todo: check for previous full
+	if [ -d ${DBBAK_FULL} ]; then
+		echo "$me: full backup present in ${DBBAK_FULL}; exiting."
+		exit 1;
+	fi
+	echo -n "$me: saving full backup to ${DBBAK_FULL}: "
+	innobackupex \
+		--user=${DBBAK_USER} \
+		--password=${DBBAK_PASSWORD} \
+		--socket=${DBBAK_SOCKET} \
+		${DBBAK_NOLOCK} \
+		--no-timestamp ${DBBAK_FULL} > ${DBBAK_FULL_LOG} 2>&1;
+
+	return=$?
+	tail -n 1 ${DBBAK_FULL_LOG} |grep -q 'completed OK'
+	status=$?
+
+	if [ "$return" -ne "0" -a "$status" -ne "0" ]; then
+		echo "ERROR!"
+		echo "backup error returned or did not report 'completed OK'!"
+		echo "... last 10 lines of log as follows:"
+		tail -n 10 ${DBBAK_FULL_LOG}
+		exit $return;
+	else
+		echo "ok."
+	fi
+}
+
+cmd_incremental() {
+
+	if [ ! -d ${DBBAK_FULL} ]; then
+		echo "$me: no full backup present in ${DBBAK_FULL}."
+		echo "$me: please run '$me full' before proceeding."
+		echo "$me: exiting."
+		exit 1;
+	fi
+
+	if [ "${DBBAK_MAX_INCR}" -eq "-1" ]; then
+		DBBAK_LAST="${DBBAK_FULL}"
+	else
+		DBBAK_LAST="${DBBAK_INCRBASE}.${DBBAK_MAX_INCR}"
+	fi
+
+	echo -n "$me: incremental backup ${DBBAK_LAST} to ${DBBAK_INCR}: "
+
+	innobackupex \
+		--user=${DBBAK_USER} \
+		--password=${DBBAK_PASSWORD} \
+		--socket=${DBBAK_SOCKET} \
+		${DBBAK_NOLOCK} \
+		--no-timestamp \
+		--incremental-basedir=${DBBAK_LAST} \
+		--incremental ${DBBAK_INCR} \
+		> ${DBBAK_INCR_LOG} 2>&1
+
+	return=$?
+	tail -n 1 ${DBBAK_INCR_LOG} |grep -q 'completed OK'
+	status=$?
+
+	if [ "$return" -ne "0" -a "$status" -ne "0" ]; then
+		echo "ERROR!"
+		echo "backup error returned or did not report 'completed OK'!"
+		echo "... last 10 lines of log as follows:"
+		tail -n 10 ${DBBAK_INCR_LOG}
+		exit $return;
+	else
+		echo "ok."
+	fi
+}
+
+cmd_rotate() {
+	if [ ! -d ${DBBAK_FULL} ]; then
+		echo "$me: no full backup present in ${DBBAK_FULL}."
+		echo "$me: please run '$me full' before proceeding."
+		echo "$me: exiting."
+		exit 1;
+	fi
+	if [ -d ${DBBAK_PREV} ]; then
+		echo "$me: previous backup present in ${DBBAK_PREV}."
+		echo "$me: please run '$me purge' before proceeding."
+		echo "$me: exiting."
+		exit 1;
+	fi
+
+	do_countdown "rotate";
+
+	for incr in ${DBBAK_INCRS}; do
+		DBBAK_ROTATE="${DBBAK_INCRBASE}.${incr}";
+		DBBAK_ROTATE_PREV="${DBBAK_INCRBASE}.prev.${incr}";
+
+		DBBAK_ROTATE_LOG="${DBBAK_INCRBASE}.${incr}.log";
+		DBBAK_ROTATE_PREV_LOG="${DBBAK_INCRBASE}.prev.${incr}.log";
+
+		echo -n "$me: moving ${DBBAK_ROTATE} to ${DBBAK_ROTATE_PREV}: "
+		mv ${DBBAK_ROTATE} ${DBBAK_ROTATE_PREV}
+		[ "$?" -eq "0" ] && echo "ok." || echo "ERROR!"
+
+		echo -n "$me: moving ${DBBAK_ROTATE_LOG} to ${DBBAK_ROTATE_PREV_LOG}: "
+		mv ${DBBAK_ROTATE_LOG} ${DBBAK_ROTATE_PREV_LOG}
+		[ "$?" -eq "0" ] && echo "ok." || echo "ERROR!"
+	done
+
+	echo -n "$me: moving ${DBBAK_FULL} to ${DBBAK_PREV}: "
+	mv ${DBBAK_FULL} ${DBBAK_PREV}
+	[ "$?" -eq "0" ] && echo "ok." || echo "ERROR!"
+
+	echo -n "$me: moving ${DBBAK_FULL_LOG} to ${DBBAK_PREV_LOG}: "
+	mv ${DBBAK_FULL_LOG} ${DBBAK_PREV_LOG}
+	[ "$?" -eq "0" ] && echo "ok." || echo "ERROR!"
+
+}
+
+cmd_purge() {
+	if [ ! -d ${DBBAK_PREV} ]; then
+		echo "$me: nothing to purge in in ${DBBAK_PREV}."
+		echo "$me: please run '$me rotate' before proceeding."
+		echo "$me: exiting."
+		exit 1;
+	fi
+
+	do_countdown "purge";
+
+	DBBAK_INCRBASE="${DBBAK_INCRBASE}.prev";  # XXX: taints w/r/t orig...
+	set_incrs;
+
+	for incr in ${DBBAK_INCRS}; do
+		echo "INCR: ${incr}"
+		DBBAK_ROTATE_PREV="${DBBAK_INCRBASE}.${incr}";
+		DBBAK_ROTATE_PREV_LOG="${DBBAK_INCRBASE}.${incr}.log";
+		echo -n "$me: removing ${DBBAK_ROTATE_PREV} ${DBBAK_ROTATE_PREV_LOG}: "
+		rm -rf ${DBBAK_ROTATE_PREV} ${DBBAK_ROTATE_PREV_LOG}
+		[ "$?" -eq "0" ] && echo "ok." || echo "ERROR!"
+	done
+
+	echo -n "$me: removing ${DBBAK_PREV} ${DBBAK_PREV_LOG}: "
+	rm -rf ${DBBAK_PREV} ${DBBAK_PREV_LOG}
+	[ "$?" -eq "0" ] && echo "ok." || echo "ERROR!"
+}
+
+
+# _start:
+me="`basename $0`"
+if [ "$#" -lt "1" ]; then
+	usage_exit;
+fi
+
+verb=$1
+case $verb in
+	"full") parse_cfg; cmd_full;;
+	"incremental") parse_cfg; cmd_incremental;;
+	"rotate") parse_cfg; cmd_rotate;;
+	"purge") parse_cfg; cmd_purge;;
+	*) usage_exit;;
+esac

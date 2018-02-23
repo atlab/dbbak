@@ -1,0 +1,8 @@
+- document
+- vars; .stamp & .frm delta file finding to log
+- multi support or config arg
+- example simple 2-weekly full + daily incrmental crontab
+- restore logic, e.g:
+  dbbak list
+  restore full.prev.3
+

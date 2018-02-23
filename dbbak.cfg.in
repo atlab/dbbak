@@ -1,0 +1,7 @@
+# these should be set..	
+# DBBAK_USER=root
+# DBBAK_PASSWORD=database
+# DBBAK_SOCKET=/var/run/mysqld/mysqld.sock
+# DBBAK_DBDIR=/var/lib/mysql
+# DBBAK_BKDIR=/var/backup/dbbk
+# # DBBAK_NOLOCK=true  # set if --no-lock desired

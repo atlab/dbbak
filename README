@@ -111,11 +111,12 @@ and should be used to prepare the backup area for a subsequent
 rotation of the active backup set.
 
 misc
----
+----
 
 Other commands include:
 
   - ls: list backups.
 
-    runs 'ls -dlart $*' within DBBAK_BKDIR
+Runs 'ls -lart' within DBBAK_BKDIR. If additional arguments are
+provided, dbbak will instead run 'ls -dlart $*'
 

@@ -206,7 +206,9 @@ cmd_incremental() {
 }
 
 cmd_ls() {
-	(cd ${DBBAK_BKDIR} && ls -dlart $*)
+	args="-lart"
+	[ "$#" -gt "0" ] && args="-dlart"
+	(cd ${DBBAK_BKDIR} && ls $args $*)
 }
 
 cmd_rotate() {

@@ -208,6 +208,7 @@ cmd_incremental() {
 cmd_ls() {
 	args="-lart"
 	[ "$#" -gt "0" ] && args="-dlart"
+	echo "contents of ${DBBAK_BKDIR}:"
 	(cd ${DBBAK_BKDIR} && ls $args $*)
 }
 

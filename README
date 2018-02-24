@@ -110,3 +110,12 @@ This command removes all .prev backups created via `dbbak rotate`,
 and should be used to prepare the backup area for a subsequent
 rotation of the active backup set.
 
+misc
+---
+
+Other commands include:
+
+  - ls: list backups.
+
+    runs 'ls -dlart $*' within DBBAK_BKDIR
+

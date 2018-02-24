@@ -1,7 +1,7 @@
 #! /bin/sh
 
 usage_exit() {
-	echo "usage: $me [full|incremental|rotate|purge]"
+	echo "usage: $me [full|incremental|ls|rotate|purge]"
 	exit 0;
 }
 
@@ -205,6 +205,10 @@ cmd_incremental() {
 	fi
 }
 
+cmd_ls() {
+	(cd ${DBBAK_BKDIR} && ls -dlart $*)
+}
+
 cmd_rotate() {
 	if [ ! -d ${DBBAK_FULL} ]; then
 		echo "$me: no full backup present in ${DBBAK_FULL}."
@@ -292,10 +296,11 @@ if [ "$#" -lt "1" ]; then
 	usage_exit;
 fi
 
-verb=$1
+verb=$1; shift;
 case $verb in
 	"full") parse_cfg; cmd_full;;
 	"incremental") parse_cfg; cmd_incremental;;
+	"ls") parse_cfg; cmd_ls $*;;
 	"rotate") parse_cfg; cmd_rotate;;
 	"purge") parse_cfg; cmd_purge;;
 	*) usage_exit;;

@@ -282,7 +282,7 @@ cmd_purge() {
 		DBBAK_ROTATE_PREV_LOG="${DBBAK_INCRBASE}.${incr}.log.prev";
 		DBBAK_ROTATE_PREV_STAMP="${DBBAK_INCRBASE}.${incr}.stamp.prev";
 		echo -n "$me: removing ${DBBAK_ROTATE_PREV} ${DBBAK_ROTATE_PREV_LOG} ${DBBAK_ROTATE_PREV_STAMP}: "
-		rm -rf ${DBBAK_ROTATE_PREV} ${DBBAK_ROTATE_PREV_LOG}
+		rm -rf ${DBBAK_ROTATE_PREV} ${DBBAK_ROTATE_PREV_LOG} ${DBBAK_ROTATE_PREV_STAMP}
 		[ "$?" -eq "0" ] && echo "ok." || echo "ERROR!"
 	done
 

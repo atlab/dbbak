@@ -4,4 +4,8 @@
 # DBBAK_SOCKET=/var/run/mysqld/mysqld.sock
 # DBBAK_DBDIR=/var/lib/mysql
 # DBBAK_BKDIR=/var/backup/dbbk
+# DBBAK_USER=mysql
+# DBBAK_GROUP=mysql
+# DBBAK_MODE=750  # ${DBBAK_DBDIR} permissions
 # # DBBAK_NOLOCK=true  # set if --no-lock desired
+# # DBBAK_RESTORE_MEM= # set value for innobackupex --use-memory if desired

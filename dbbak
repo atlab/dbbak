@@ -55,14 +55,20 @@ parse_cfg() {
 	[ -z "${DBBAK_SOCKET}" ] && cfg_exit "DBBAK_SOCKET"
 	[ -z "${DBBAK_DBDIR}" ] && cfg_exit "DBBAK_DBDIR"
 	[ -z "${DBBAK_BKDIR}" ] && cfg_exit "DBBAK_BKDIR"
+	[ -z "${DBBAK_USER}" ] && cfg_exit "DBBAK_USER"
+	[ -z "${DBBAK_GROUP}" ] && cfg_exit "DBBAK_GROUP"
+	[ -z "${DBBAK_MODE}" ] && cfg_exit "DBBAK_MODE"
 	[ ! -z "${DBBAK_NOLOCK}" ] && DBBAK_NOLOCK="--no-lock"
+	[ ! -z "${DBBAK_RESTORE_MEM}" ] \
+		&& DBBAK_RESTORE_MEM="--use-meory=$DBBAK_RESTORE_MEM" \
+		|| DBBAK_RESTORE_MEM=""
 
 	DBBAK_FULL="${DBBAK_BKDIR}/full"
 	DBBAK_FULL_LOG="${DBBAK_FULL}.log"
 	DBBAK_FULL_STAMP="${DBBAK_FULL}.stamp"
 
 	DBBAK_PREV="${DBBAK_BKDIR}/full.prev"
-	DBBAK_PREV_LOG="${DBBAK_PREV}.log"
+	BBAK_PREV_LOG="${DBBAK_PREV}.log"
 	DBBAK_PREV_STAMP="${DBBAK_PREV}.stamp"
 
 	DBBAK_INCRBASE="${DBBAK_BKDIR}/incr"
@@ -76,18 +82,22 @@ parse_cfg() {
 }
 
 show_cfg() {
-	echo "# ${me} config:"
+	echo "# ${me} parsed/applied config:"
 	echo "# DBBAK_USER=${DBBAK_USER}"
 	echo "# DBBAK_SOCKET=${DBBAK_SOCKET}"
 	echo "# DBBAK_DBDIR=${DBBAK_DBDIR}"
 	echo "# DBBAK_BKDIR=${DBBAK_BKDIR}"
+	echo "# DBBAK_USER=${DBBAK_USER}"
+	echo "# DBBAK_GROUP=${DBBAK_GROUP}"
+	echo "# DBBAK_MODE=${DBBAK_MODE}"
 	echo "# DBBAK_NOLOCK=${DBBAK_NOLOCK}"
+	echo "# DBBAK_RESTORE_MEM=${DBBAK_RESTORE_MEM}"
 	echo "# DBBAK_START=${DBBAK_START}"
 }
 
 do_countdown() {
 	if [ -t 0 ]; then  # countdown only for interactive
-		echo "Warning!: $me $1 proceeding in 5 seconds."
+		echo "Warning!: $me $* proceeding in 5 seconds."
 		echo ".. interrupt (^C) to cancel."
 		for x in 5 4 3 2 1; do
 			echo -n "..${x}";
@@ -212,6 +222,121 @@ cmd_ls() {
 	(cd ${DBBAK_BKDIR} && ls $args $*)
 }
 
+cmd_restore() {
+
+	#
+	# ensure db is shutdown
+	#
+
+	mysqladmin -S ${DBBAK_SOCKET} status >/dev/null 2>&1;
+	if [ "$?" -eq "0" ]; then
+		echo "$me: error: mysqld detected on socket ${DBBAK_SOCKET}."
+		echo "$me: restore can only run on stopped instances."
+		echo "$me: please verify host & stop server before proceeding."
+		echo "$me: exiting."
+		exit 1;
+	fi
+
+	#
+	# locate available backups
+	#
+	# TODO: skip detection process if arg given
+
+	set_incrs; set_prevs;
+
+	base=""; # determine latest full backup
+	for d in ${DBBAK_PREV} ${DBBAK_FULL}; do
+	
+		# should exist, be a directory, and the newest available.	
+		[ -d "${d}" ] || continue;
+		[ -z "${base}" ] && [ -d "${d}" ] && base="$d";
+		[ "${base}" != "${d}" ] && [ "${d}" -nt "${base}" ] \
+			&& base="$d";
+
+	done
+
+	if [ -z "${base}" ]; then
+		echo "$me: no backups available for restore. exiting."
+		exit 1;
+	fi
+
+ 	if [ "${base}" = "${DBBAK_FULL}" ]; then
+ 		nincr="${DBBAK_MAX_INCR}"
+ 		prev=""
+ 	else
+ 		nincr="${DBBAK_MAX_PREV}"
+ 		prev=".prev"
+ 	fi
+
+	echo "$me: restore job on `hostname` at `date`"
+	show_cfg;
+
+	[ "$nincr" -eq "-1" ] && src=$base \
+		|| src=${DBBAK_INCRBASE}.${nincr}${prev}
+
+	echo "$me: will restore from ${src}"
+
+	#
+	# remove exisitng database
+	#
+
+	if [ -t 0 ]; then
+		shibboleth="ALL YOUR BASE ARE BELONG TO US";
+
+		echo "Warning!!!: Restore *DESTROYS* current databases!!!";
+		echo "Please enter '$shibboleth'"
+		echo "if you are *COMPLETELY SURE* you want to proceed."
+		read response;
+
+		if [ "$response" != "$shibboleth" ]; then 
+			echo "restore aborted - response incorrect." 
+			exit 1;
+		fi
+	fi
+
+	echo "$me: path to be destroyed is: '${DBBAK_DBDIR}'"
+	do_countdown "wipe/recreate of ${DBBAK_DBDIR}"
+	rm -rf ${DBBAK_DBDIR} \
+	&& install -d -m ${DBBAK_MODE} -o ${DBBAK_USER} -g ${DBBAK_GROUP} \
+		${DBBAK_DBDIR}
+
+	#
+	# restore base full backup
+	#
+	# XXX: make sure is shutdown as sanity check? or does innobackup do this?
+
+	echo "$me: copying full backup"
+	rsync -avHS --delete ${base}/ ${DBBAK_DBDIR}/
+	echo "$me: appyling logs to full backup"
+	innobackupex ${DBBAK_RESTORE_MEM} \
+		--apply-log --redo-only ${DBBAK_DBDIR}/
+
+	# 
+	# restore incremental backups
+	# 
+
+ 	if [ "$src" -ne "$base" ]; then
+ 		inc=0;
+ 		while [ "$inc" -le "$nincr" ]; do
+ 			echo "$me: restore incremental $inc of $nincr"
+ 			innobackupex ${DBBAK_RESTORE_MEM} \
+ 				--apply-log --redo-only ${DBBAK_DBDIR}/ \
+ 				--incremental-dir=${DBBAK_INCRBASE}.${inc}${prev}
+ 			inc=$((inc + 1))
+ 		done
+ 	fi
+
+ 	# apply final logs
+	echo "$me: appyling final logs"
+	innobackupex --apply-log ${DBBAK_DBDIR}/
+
+	# set perms (implies perm settings in cfg)
+	echo "$me: setting permissions"
+	chown -R ${DBBAK_USER}:${DBBAK_GROUP} ${DBBAK_DBDIR}/
+	chmod ${DBBAK_MODE} ${DBBAK_DBDIR}/
+	echo "$me: done"
+}
+
 cmd_rotate() {
 	if [ ! -d ${DBBAK_FULL} ]; then
 		echo "$me: no full backup present in ${DBBAK_FULL}."
@@ -304,6 +429,7 @@ case $verb in
 	"full") parse_cfg; cmd_full;;
 	"incremental") parse_cfg; cmd_incremental;;
 	"ls") parse_cfg; cmd_ls $*;;
+	"restore") parse_cfg; cmd_restore $*;;
 	"rotate") parse_cfg; cmd_rotate;;
 	"purge") parse_cfg; cmd_purge;;
 	*) usage_exit;;

@@ -55,7 +55,7 @@ parse_cfg() {
 	[ -z "${DBBAK_SOCKET}" ] && cfg_exit "DBBAK_SOCKET"
 	[ -z "${DBBAK_DBDIR}" ] && cfg_exit "DBBAK_DBDIR"
 	[ -z "${DBBAK_BKDIR}" ] && cfg_exit "DBBAK_BKDIR"
-	[ -z "${DBBAK_USER}" ] && cfg_exit "DBBAK_USER"
+	[ -z "${DBBAK_OWNER}" ] && cfg_exit "DBBAK_OWNER"
 	[ -z "${DBBAK_GROUP}" ] && cfg_exit "DBBAK_GROUP"
 	[ -z "${DBBAK_MODE}" ] && cfg_exit "DBBAK_MODE"
 	[ ! -z "${DBBAK_NOLOCK}" ] && DBBAK_NOLOCK="--no-lock"
@@ -87,7 +87,7 @@ show_cfg() {
 	echo "# DBBAK_SOCKET=${DBBAK_SOCKET}"
 	echo "# DBBAK_DBDIR=${DBBAK_DBDIR}"
 	echo "# DBBAK_BKDIR=${DBBAK_BKDIR}"
-	echo "# DBBAK_USER=${DBBAK_USER}"
+	echo "# DBBAK_OWNER=${DBBAK_OWNER}"
 	echo "# DBBAK_GROUP=${DBBAK_GROUP}"
 	echo "# DBBAK_MODE=${DBBAK_MODE}"
 	echo "# DBBAK_NOLOCK=${DBBAK_NOLOCK}"
@@ -329,7 +329,7 @@ cmd_restore() {
 
 	# set perms (implies perm settings in cfg)
 	echo "$me: setting permissions"
-	chown -R ${DBBAK_USER}:${DBBAK_GROUP} ${DBBAK_DBDIR}/
+	chown -R ${DBBAK_OWNER}:${DBBAK_GROUP} ${DBBAK_DBDIR}/
 	chmod ${DBBAK_MODE} ${DBBAK_DBDIR}/
 	echo "$me: done"
 }

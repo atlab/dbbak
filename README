@@ -132,6 +132,25 @@ This command removes all .prev backups created via `dbbak rotate`,
 and should be used to prepare the backup area for a subsequent
 rotation of the active backup set.
 
+cron driver
+-----------
+
+Synposys:
+
+   # dbbak.cron daily
+   # dbbak.cron weekly
+
+The 'dbbak.cron' script provides a driver mechanism to run dbbak
+to maintain weekly full and daily incremental backups, with
+rotation/purge steps occuring prior to the weekly full run.
+
+The script will attempt to prevent double scheduling by exiting
+if the file $DBBAK_BKDIR/dbbak.cron.lock exists.
+
+A companion file, dbbak.crontab, configures a basic schedule for
+this script, executing the full run at 2AM on sundays and the
+incremental run at 2AM on all other days.
+
 misc
 ----
 

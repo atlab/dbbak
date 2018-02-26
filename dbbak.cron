@@ -1,0 +1,42 @@
+#! /bin/sh
+
+#
+# dbbak.cron: cron driver for dbbak.
+#
+
+err_exit() {
+	echo "$me: error: $*"
+	exit 1;
+}
+
+lock() {
+	[ -f "$lockfile" ] \
+		&& err_exit "lock(): lockfile exists" 
+		|| touch $lockfile
+}
+
+unlock(){
+	[ -f "$lockfile" ] \
+		&& rm -f $lockfile
+		|| err_exit "unlock(): lockfile does not exist!" 
+}
+
+#
+# _start:
+#
+
+me="`basename $0`"
+. /etc/${me}.cfg
+[ -z "$DBBAK_BKDIR" ] && err_exit "misconfigured."
+lockfile="${DBBAK_BKDIR}/dbbak.cron.lock";
+
+lock;
+case $1 in
+	"daily")
+		dbbak incremental;
+	"weekly")
+		dbbak purge;
+		dbbak rotate;
+		dbbak full;
+esac
+unlock;

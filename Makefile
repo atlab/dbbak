@@ -11,4 +11,5 @@ install:
 		install -o root -g root -m 644 dbbak.cfg.in /etc/dbbak.cfg.upgrade \
 	)
 	@install -o root -g root -m 755 dbbak /usr/local/bin/dbbak
+	@install -o root -g root -m 755 dbbak /usr/local/bin/dbbak.cron
 	@echo "done."

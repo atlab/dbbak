@@ -1,6 +1,2 @@
 - multi support: config env var or default...
-- example simple 2-weekly full + daily incrmental crontab
 - better/cleaner handling of rotation variables
-- restore logic, e.g:
-  dbbak list
-  restore full.prev.3

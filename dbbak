@@ -68,7 +68,7 @@ parse_cfg() {
 	DBBAK_FULL_STAMP="${DBBAK_FULL}.stamp"
 
 	DBBAK_PREV="${DBBAK_BKDIR}/full.prev"
-	BBAK_PREV_LOG="${DBBAK_PREV}.log"
+	DBBAK_PREV_LOG="${DBBAK_PREV}.log"
 	DBBAK_PREV_STAMP="${DBBAK_PREV}.stamp"
 
 	DBBAK_INCRBASE="${DBBAK_BKDIR}/incr"

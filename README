@@ -69,6 +69,28 @@ corrected.
 
 Backup details will be logged to DBBAK_BKDIR/incr.N.log.
 
+backup restoration
+------------------
+
+Synopsis:
+
+    # dbbak restore
+
+To restore a backup, use the `dbbak restore` command.
+
+This will check that mysql is not running, completely wipe the
+contents of the active database directory, and copy in/apply the
+latest available full and incremental backups into place.
+
+Since this is a potentially very dangerous command, a confirmation
+is required for this action to proceed. 
+
+Be sure to carefully verify output to ensure each step has properly run.
+
+Support for choosing the backup to restore has not yet been implemented;
+please review the function body of cmd_restore and innobackupex documentation
+to determine appropriate steps in this case.
+
 backup rotation
 ---------------
 

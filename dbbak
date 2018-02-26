@@ -60,7 +60,7 @@ parse_cfg() {
 	[ -z "${DBBAK_MODE}" ] && cfg_exit "DBBAK_MODE"
 	[ ! -z "${DBBAK_NOLOCK}" ] && DBBAK_NOLOCK="--no-lock"
 	[ ! -z "${DBBAK_RESTORE_MEM}" ] \
-		&& DBBAK_RESTORE_MEM="--use-meory=$DBBAK_RESTORE_MEM" \
+		&& DBBAK_RESTORE_MEM="--use-memory=$DBBAK_RESTORE_MEM" \
 		|| DBBAK_RESTORE_MEM=""
 
 	DBBAK_FULL="${DBBAK_BKDIR}/full"

@@ -295,15 +295,12 @@ cmd_restore() {
 	fi
 
 	echo "$me: path to be destroyed is: '${DBBAK_DBDIR}'"
-	do_countdown "wipe/recreate of ${DBBAK_DBDIR}"
-	rm -rf ${DBBAK_DBDIR} \
-	&& install -d -m ${DBBAK_MODE} -o ${DBBAK_USER} -g ${DBBAK_GROUP} \
-		${DBBAK_DBDIR}
 
 	#
-	# restore base full backup
+	# wipe/restore base full backup
 	#
-	# XXX: make sure is shutdown as sanity check? or does innobackup do this?
+
+	do_countdown "wipe/recreate of ${DBBAK_DBDIR}"
 
 	echo "$me: copying full backup"
 	rsync -avHS --delete ${base}/ ${DBBAK_DBDIR}/

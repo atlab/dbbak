@@ -274,7 +274,7 @@ cmd_restore() {
 	[ "$nincr" -eq "-1" ] && src=$base \
 		|| src=${DBBAK_INCRBASE}.${nincr}${prev}
 
-	echo "$me: will restore from ${src}"
+	echo "$me: will restore from $src (base: $base)"
 
 	#
 	# remove exisitng database
@@ -302,7 +302,7 @@ cmd_restore() {
 
 	do_countdown "wipe/recreate of ${DBBAK_DBDIR}"
 
-	echo "$me: copying full backup"
+	echo "$me: copying full backup from $base"
 	rsync -avHS --delete ${base}/ ${DBBAK_DBDIR}/
 	echo "$me: appyling logs to full backup"
 	innobackupex ${DBBAK_RESTORE_MEM} \

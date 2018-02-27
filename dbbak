@@ -312,7 +312,7 @@ cmd_restore() {
 	# restore incremental backups
 	# 
 
- 	if [ "$src" -ne "$base" ]; then
+ 	if [ "$src" != "$base" ]; then
  		inc=0;
  		while [ "$inc" -le "$nincr" ]; do
  			echo "$me: restore incremental $inc of $nincr"

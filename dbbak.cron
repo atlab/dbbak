@@ -11,13 +11,13 @@ err_exit() {
 
 lock() {
 	[ -f "$lockfile" ] \
-		&& err_exit "lock(): lockfile exists" 
+		&& err_exit "lock(): lockfile exists"  \
 		|| touch $lockfile
 }
 
 unlock(){
 	[ -f "$lockfile" ] \
-		&& rm -f $lockfile
+		&& rm -f $lockfile \
 		|| err_exit "unlock(): lockfile does not exist!" 
 }
 

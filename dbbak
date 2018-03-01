@@ -288,7 +288,6 @@ cmd_restore() {
 		echo "if you are *COMPLETELY SURE* you want to proceed."
 		read response;
 
-		# hmm --ibbackup=xtrabackup_56 reqd for 2.1.8-1 xtrabackup
 		if [ "$response" != "$shibboleth" ]; then 
 			echo "restore aborted - response incorrect." 
 			exit 1;
@@ -306,6 +305,9 @@ cmd_restore() {
 	echo "$me: copying full backup from $base"
 	rsync -avHS --delete ${base}/ ${DBBAK_DBDIR}/
 	echo "$me: appyling logs to full backup"
+	# hmm --ibbackup=xtrabackup_56 reqd for 2.1.8-1 xtrabackup 
+	# this also yields ignorable 'unknown flags 50' if db > 5.6.16
+	# https://bugs.launchpad.net/percona-server/+bug/1302882
 	innobackupex ${DBBAK_RESTORE_MEM} \
 		--apply-log --redo-only ${DBBAK_DBDIR}/
 

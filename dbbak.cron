@@ -17,7 +17,7 @@ err_exit() {
 lock() {
 	[ -f "$lockfile" ] \
 		&& err_exit "lock(): lockfile $lockfile exists"  \
-		|| touch $lockfile
+		|| hostname > $lockfile
 }
 
 unlock(){

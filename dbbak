@@ -288,6 +288,7 @@ cmd_restore() {
 		echo "if you are *COMPLETELY SURE* you want to proceed."
 		read response;
 
+		# hmm --ibbackup=xtrabackup_56 reqd for 2.1.8-1 xtrabackup
 		if [ "$response" != "$shibboleth" ]; then 
 			echo "restore aborted - response incorrect." 
 			exit 1;

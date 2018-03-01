@@ -26,6 +26,7 @@ unlock(){
 #
 
 me="`basename $0`"
+me=${me%.cron}
 . /etc/${me}.cfg
 [ -z "$DBBAK_BKDIR" ] && err_exit "misconfigured."
 lockfile="${DBBAK_BKDIR}/dbbak.cron.lock";

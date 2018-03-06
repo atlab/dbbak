@@ -4,6 +4,11 @@
 # dbbak.cron: cron driver for dbbak.
 #
 
+PATH="/sbin:/bin:"
+PATH="${PATH}:/usr/sbin:/usr/bin:"
+PATH="${PATH}:/usr/local/sbin:/usr/local/bin:"
+export PATH;
+
 usage_exit() {
 	echo "usage: $me [daily|weekly]"
 	exit 1;

@@ -1,5 +1,10 @@
 #! /bin/sh
 
+PATH="/sbin:/bin:"
+PATH="${PATH}:/usr/sbin:/usr/bin:"
+PATH="${PATH}:/usr/local/sbin:/usr/local/bin:"
+export PATH;
+
 usage_exit() {
 	echo "usage: $me [full|incremental|ls|restore|rotate|purge]"
 	exit 0;

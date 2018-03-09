@@ -214,7 +214,7 @@ cmd_incremental() {
 		echo "# tables possibly modified during run:" \
 			2>&1 |tee -a ${DBBAK_INCR_LOG};
 		find ${DBBAK_DBDIR} -type f -name '*.frm' \
-			-newer ${DBBAK_FULL_STAMP} -exec ls -l {} \; \
+			-newer ${DBBAK_INCR_STAMP} -exec ls -l {} \; \
 			2>&1 |tee -a ${DBBAK_INCR_LOG};
 		echo "# ok." 2>&1 |tee -a ${DBBAK_INCR_LOG};
 	fi

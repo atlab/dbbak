@@ -15,41 +15,63 @@ cfg_exit() {
 	exit 1;
 }
 
-set_incrs() {
-	set -- ${DBBAK_INCRBASE}.[0-9] \
-		${DBBAK_INCRBASE}.[0-9][0-9] \
-		${DBBAK_INCRBASE}.[0-9][0-9][0-9]
+err_exit() {
+	echo "$*";
+	exit 1;
+}
 
-	DBBAK_MAX_INCR='-1'; DBBAK_INCRS='';
+set_incrs() {
+
+	#
+	# set current set incremental variables
+	#
+
+	set -- ${DBBAK_CUR_INCRBASE}.[0-9] \
+		${DBBAK_CUR_INCRBASE}.[0-9][0-9] \
+		${DBBAK_CUR_INCRBASE}.[0-9][0-9][0-9]
+
+	DBBAK_CUR_MAX_INCR_NO='-1'; DBBAK_CUR_INCR_NOS='';
 	for x; do 
 		if [ -d "$x" ]; then
  			id=${x##*.};  # id is trailing digit after '.'
-			DBBAK_INCRS="$DBBAK_INCRS $id"
-			[ "$id" -gt "$DBBAK_MAX_INCR" ] \
-				&& DBBAK_MAX_INCR="$id"
+			DBBAK_CUR_INCR_NOS="$DBBAK_CUR_INCR_NOS $id"
+			[ "$id" -gt "$DBBAK_CUR_MAX_INCR_NO" ] \
+				&& DBBAK_CUR_MAX_INCR_NO="$id"
 		fi
 	done
 
-	DBBAK_CUR_INCR=$((DBBAK_MAX_INCR + 1))
-}
+	DBBAK_CUR_INCR_NO=$((DBBAK_CUR_MAX_INCR_NO + 1))
 
-set_prevs() {
-	set -- ${DBBAK_INCRBASE}.[0-9].prev \
-		${DBBAK_INCRBASE}.[0-9][0-9].prev \
-		${DBBAK_INCRBASE}.[0-9][0-9][0-9].prev
+	DBBAK_CUR_INCR="${DBBAK_CUR_INCRBASE}.${DBBAK_CUR_INCR_NO}"
+	DBBAK_CUR_INCR_LOG="${DBBAK_CUR_INCR}.log"
+	DBBAK_CUR_INCR_STAMP="${DBBAK_CUR_INCR}.stamp"
 
-	DBBAK_MAX_PREV='-1'; DBBAK_PREVS='';
+        if [ "${DBBAK_CUR_MAX_INCR_NO}" -eq "-1" ]; then
+                DBBAK_CUR_LAST="${DBBAK_CUR_FULL}"
+        else
+                DBBAK_CUR_LAST="${DBBAK_CUR_INCRBASE}.${DBBAK_CUR_MAX_INCR_NO}"
+        fi
+
+	#
+	# set previous set incremental variables
+	#
+
+	set -- ${DBBAK_PREV_INCRBASE}.[0-9] \
+		${DBBAK_PREV_INCRBASE}.[0-9][0-9] \
+		${DBBAK_PREV_INCRBASE}.[0-9][0-9][0-9]
+
+	DBBAK_PREV_MAX_INCR_NO='-1'; DBBAK_PREV_INCR_NOS='';
 	for x; do 
 		if [ -d "$x" ]; then
- 			id=${x%.prev}; # zap .prev
- 			id=${id##*.}; # get trailing digit
-			DBBAK_PREVS="$DBBAK_PREVS $id"
-			[ "$id" -gt "$DBBAK_MAX_PREV" ] \
-				&& DBBAK_MAX_PREV="$id"
+ 			id=${x##*.};  # id is trailing digit after '.'
+			DBBAK_PREV_INCR_NOS="$DBBAK_PREV_INCR_NOS $id"
+			[ "$id" -gt "$DBBAK_PREV_MAX_INCR_NO" ] \
+				&& DBBAK_PREV_MAX_INCR_NO="$id"
 		fi
 	done
 
-	DBBAK_CUR_PREV=$((DBBAK_MAX_PREV + 1))
+	DBBAK_PREV_INCR_NO=$((DBBAK_PREV_MAX_INCR_NO + 1))
+
 }
 
 parse_cfg() {
@@ -68,20 +90,18 @@ parse_cfg() {
 		&& DBBAK_RESTORE_MEM="--use-memory=$DBBAK_RESTORE_MEM" \
 		|| DBBAK_RESTORE_MEM=""
 
-	DBBAK_FULL="${DBBAK_BKDIR}/full"
-	DBBAK_FULL_LOG="${DBBAK_FULL}.log"
-	DBBAK_FULL_STAMP="${DBBAK_FULL}.stamp"
+	DBBAK_CUR="${DBBAK_BKDIR}/cur"
+	DBBAK_CUR_FULL="${DBBAK_BKDIR}/cur/full"
+	DBBAK_CUR_FULL_LOG="${DBBAK_CUR_FULL}.log"
+	DBBAK_CUR_FULL_STAMP="${DBBAK_CUR_FULL}.stamp"
+	DBBAK_CUR_INCRBASE="${DBBAK_CUR}/incr"
 
-	DBBAK_PREV="${DBBAK_BKDIR}/full.prev"
-	DBBAK_PREV_LOG="${DBBAK_PREV}.log"
-	DBBAK_PREV_STAMP="${DBBAK_PREV}.stamp"
-
-	DBBAK_INCRBASE="${DBBAK_BKDIR}/incr"
+	DBBAK_PREV="${DBBAK_BKDIR}/prev"
+	DBBAK_PREV_FULL="${DBBAK_BKDIR}/prev/full"
+	DBBAK_PREV_FULL_LOG="${DBBAK_PREV_FULL}.log"
+	DBBAK_PREV_FULL_STAMP="${DBBAK_PREV_FULL}.stamp"
+	DBBAK_PREV_INCRBASE="${DBBAK_PREV}/incr"
 	set_incrs;
-
-	DBBAK_INCR="${DBBAK_INCRBASE}.${DBBAK_CUR_INCR}"
-	DBBAK_INCR_LOG="${DBBAK_INCR}.log"
-	DBBAK_INCR_STAMP="${DBBAK_INCR}.stamp"
 
 	DBBAK_START="`date '+%s'`"
 }
@@ -113,75 +133,74 @@ do_countdown() {
 }
 
 cmd_full() {
-	# todo: check for previous full
-	if [ -d ${DBBAK_FULL} ]; then
-		echo "$me: full backup present in ${DBBAK_FULL}; exiting."
-		exit 1;
+	
+	[ -d ${DBBAK_CUR_FULL} ] \
+		&& err_exit "$me: backup exists in ${DBBAK_FULL}. exiting."
+
+	echo -n "$me: saving full backup to ${DBBAK_CUR_FULL}: "
+
+	if [ ! -d "${DBBAK_CUR}" ]; then
+		mkdir ${DBBAK_CUR} \
+		|| err_exit "$me: problem creating ${DBBAK_CUR}. exiting.";
 	fi
-	echo -n "$me: saving full backup to ${DBBAK_FULL}: "
 
-	echo "# dbbak full run" > ${DBBAK_FULL_LOG} 2>&1;
-	show_cfg >> ${DBBAK_FULL_LOG} 2>&1;	
+	echo "# dbbak full run" > ${DBBAK_CUR_FULL_LOG} 2>&1;
+	show_cfg >> ${DBBAK_CUR_FULL_LOG} 2>&1;
 
-	echo ${DBBAK_START} > ${DBBAK_FULL_STAMP};
+	echo ${DBBAK_START} > ${DBBAK_CUR_FULL_STAMP};
 
 	innobackupex \
 		--user=${DBBAK_USER} \
 		--password=${DBBAK_PASSWORD} \
 		--socket=${DBBAK_SOCKET} \
 		${DBBAK_NOLOCK} \
-		--no-timestamp ${DBBAK_FULL} >> ${DBBAK_FULL_LOG} 2>&1;
+		--no-timestamp ${DBBAK_CUR_FULL} >> ${DBBAK_CUR_FULL_LOG} 2>&1;
 
 	return=$?
-	tail -n 1 ${DBBAK_FULL_LOG} |grep -q 'completed OK'
+	tail -n 1 ${DBBAK_CUR_FULL_LOG} |grep -q 'completed OK'
 	status=$?
 
 	if [ "$return" -ne "0" -a "$status" -ne "0" ]; then
 		echo "ERROR!"
 		echo "backup error returned or did not report 'completed OK'!"
 		echo "... last 10 lines of log as follows:"
-		tail -n 10 ${DBBAK_FULL_LOG}
+		tail -n 10 ${DBBAK_CUR_FULL_LOG}
 		exit $return;
 	else
 		echo "ok."
 	fi
 
 	if [ ! -z "${DBBAK_NOLOCK}" ]; then
-		echo "# ${me} stamp file:" 2>&1 |tee -a ${DBBAK_FULL_LOG};
-		ls -l ${DBBAK_FULL_STAMP} 2>&1 |tee -a ${DBBAK_FULL_LOG};
+		echo "# ${me} stamp file:" 2>&1 |tee -a ${DBBAK_CUR_FULL_LOG};
+		ls -l ${DBBAK_CUR_FULL_STAMP} 2>&1 |tee -a ${DBBAK_CUR_FULL_LOG};
 
 		echo "# tables possibly modified during run:" \
-			2>&1 |tee -a ${DBBAK_FULL_LOG};
+			2>&1 |tee -a ${DBBAK_CUR_FULL_LOG};
+		echo "# (cross check timestamps to .frm copy output above)" \
+			2>&1 |tee -a ${DBBAK_CUR_FULL_LOG};
 		find ${DBBAK_DBDIR} -type f -name '*.frm' \
-			-newer ${DBBAK_FULL_STAMP} -exec ls -l {} \; \
-			2>&1 |tee -a ${DBBAK_FULL_LOG};
-		echo "# ok." 2>&1 |tee -a ${DBBAK_FULL_LOG};
+			-newer ${DBBAK_CUR_FULL_STAMP} -exec ls -l {} \; \
+			2>&1 |tee -a ${DBBAK_CUR_FULL_LOG};
+		echo "# ok." 2>&1 |tee -a ${DBBAK_CUR_FULL_LOG};
 	fi
 }
 
 cmd_incremental() {
 
-	if [ ! -d ${DBBAK_FULL} ]; then
-		echo "$me: no full backup present in ${DBBAK_FULL}."
+	if [ ! -d ${DBBAK_CUR_FULL} ]; then
+		echo "$me: no full backup present in ${DBBAK_CUR_FULL}."
 		echo "$me: please run '$me full' before proceeding."
 		echo "$me: exiting."
 		exit 1;
 	fi
 
-	if [ "${DBBAK_MAX_INCR}" -eq "-1" ]; then
-		DBBAK_LAST="${DBBAK_FULL}"
-	else
-		DBBAK_LAST="${DBBAK_INCRBASE}.${DBBAK_MAX_INCR}"
-	fi
+	echo -n "$me: incremental: ${DBBAK_CUR_LAST} to ${DBBAK_CUR_INCR}: ";
 
-	echo -n "$me: incremental backup ${DBBAK_LAST} to ${DBBAK_INCR}: "
-
-	echo "# dbbak incremental run" > ${DBBAK_INCR_LOG} 2>&1;
-	show_cfg >> ${DBBAK_INCR_LOG} 2>&1;	
-	echo "# DBBAK_LAST=${DBBAK_LAST}" >> ${DBBAK_INCR_LOG} 2>&1;	
-	echo "# DBBAK_INCR=${DBBAK_INCR}" >> ${DBBAK_INCR_LOG} 2>&1;	
-
-	echo ${DBBAK_START} > ${DBBAK_INCR_STAMP};
+	echo "# $me incremental run" > ${DBBAK_CUR_INCR_LOG} 2>&1;
+	show_cfg >> ${DBBAK_CUR_INCR_LOG} 2>&1;	
+	echo "# DBBAK_CUR_LAST=${DBBAK_CUR_LAST}" >> ${DBBAK_CUR_INCR_LOG} 2>&1;
+	echo "# DBBAK_CUR_INCR=${DBBAK_CUR_INCR}" >> ${DBBAK_CUR_INCR_LOG} 2>&1;	
+	echo ${DBBAK_START} > ${DBBAK_CUR_INCR_STAMP};
 
 	innobackupex \
 		--user=${DBBAK_USER} \
@@ -189,42 +208,49 @@ cmd_incremental() {
 		--socket=${DBBAK_SOCKET} \
 		${DBBAK_NOLOCK} \
 		--no-timestamp \
-		--incremental-basedir=${DBBAK_LAST} \
-		--incremental ${DBBAK_INCR} \
-		>> ${DBBAK_INCR_LOG} 2>&1
+		--incremental-basedir=${DBBAK_CUR_LAST} \
+		--incremental ${DBBAK_CUR_INCR} \
+		>> ${DBBAK_CUR_INCR_LOG} 2>&1
 
 	return=$?
-	tail -n 1 ${DBBAK_INCR_LOG} |grep -q 'completed OK'
+	tail -n 1 ${DBBAK_CUR_INCR_LOG} |grep -q 'completed OK'
 	status=$?
 
 	if [ "$return" -ne "0" -a "$status" -ne "0" ]; then
 		echo "ERROR!"
 		echo "backup error returned or did not report 'completed OK'!"
 		echo "... last 10 lines of log as follows:"
-		tail -n 10 ${DBBAK_INCR_LOG}
+		tail -n 10 ${DBBAK_CUR_INCR_LOG}
 		exit $return;
 	else
 		echo "ok."
 	fi
 
 	if [ ! -z "${DBBAK_NOLOCK}" ]; then
-		echo "# ${me} stamp file:" 2>&1 |tee -a ${DBBAK_INCR_LOG};
-		ls -l ${DBBAK_INCR_STAMP} 2>&1 |tee -a ${DBBAK_INCR_LOG};
+		echo "# ${me} stamp file:" 2>&1 |tee -a ${DBBAK_CUR_INCR_LOG};
+
+		ls -l ${DBBAK_CUR_INCR_STAMP} 2>&1 \
+			|tee -a ${DBBAK_CUR_INCR_LOG};
 
 		echo "# tables possibly modified during run:" \
-			2>&1 |tee -a ${DBBAK_INCR_LOG};
+			2>&1 |tee -a ${DBBAK_CUR_INCR_LOG};
+		echo "# (cross check timestamps to .frm copy output above)" \
+			2>&1 |tee -a ${DBBAK_CUR_INCR_LOG};
+
 		find ${DBBAK_DBDIR} -type f -name '*.frm' \
-			-newer ${DBBAK_INCR_STAMP} -exec ls -l {} \; \
-			2>&1 |tee -a ${DBBAK_INCR_LOG};
-		echo "# ok." 2>&1 |tee -a ${DBBAK_INCR_LOG};
+			-newer ${DBBAK_CUR_INCR_STAMP} -exec ls -l {} \; \
+			2>&1 |tee -a ${DBBAK_CUR_INCR_LOG};
+
+		echo "# ok." 2>&1 |tee -a ${DBBAK_CUR_INCR_LOG};
 	fi
 }
 
 cmd_ls() {
-	args="-lart"
-	[ "$#" -gt "0" ] && args="-dlart"
-	echo "contents of ${DBBAK_BKDIR}:"
-	(cd ${DBBAK_BKDIR} && ls $args $*)
+	echo "Backups in ${DBBAK_BKDIR}:"
+	( cd ${DBBAK_BKDIR} \
+		&& ls -dlart args ${DBBAK_PREV#${DBBAK_BKDIR}/}/* \
+				${DBBAK_CUR#${DBBAK_BKDIR}/}/* \
+			2>/dev/null || true )
 }
 
 cmd_restore() {
@@ -247,10 +273,10 @@ cmd_restore() {
 	#
 	# TODO: skip detection process if arg given
 
-	set_incrs; set_prevs;
+	set_incrs;
 
 	base=""; # determine latest full backup
-	for d in ${DBBAK_PREV} ${DBBAK_FULL}; do
+	for d in ${DBBAK_PREV_FULL} ${DBBAK_CUR_FULL}; do
 	
 		# should exist, be a directory, and the newest available.	
 		[ -d "${d}" ] || continue;
@@ -265,19 +291,19 @@ cmd_restore() {
 		exit 1;
 	fi
 
- 	if [ "${base}" = "${DBBAK_FULL}" ]; then
- 		nincr="${DBBAK_MAX_INCR}"
- 		prev=""
+ 	if [ "${base}" = "${DBBAK_CUR_FULL}" ]; then
+		incrbase="${DBBAK_CUR_INCRBASE}"
+ 		nincr="${DBBAK_CUR_MAX_INCR_NO}"
  	else
- 		nincr="${DBBAK_MAX_PREV}"
- 		prev=".prev"
+		incrbase="${DBBAK_PREV_INCRBASE}"
+ 		nincr="${DBBAK_PREV_MAX_INCR_NO}"
  	fi
 
 	echo "$me: restore job on `hostname` at `date`"
-	show_cfg;
+	show_cfg; # TODO audit vars
 
 	[ "$nincr" -eq "-1" ] && src=$base \
-		|| src=${DBBAK_INCRBASE}.${nincr}${prev}
+		|| src=${incrbase}.${nincr}
 
 	echo "$me: will restore from $src (base: $base)"
 
@@ -309,10 +335,13 @@ cmd_restore() {
 
 	echo "$me: copying full backup from $base"
 	rsync -avHS --delete ${base}/ ${DBBAK_DBDIR}/
+
 	echo "$me: appyling logs to full backup"
-	# hmm --ibbackup=xtrabackup_56 reqd for 2.1.8-1 xtrabackup 
+
+	# NOTE: --ibbackup=xtrabackup_56 reqd for 2.1.8-1 xtrabackup 
 	# this also yields ignorable 'unknown flags 50' if db > 5.6.16
 	# https://bugs.launchpad.net/percona-server/+bug/1302882
+
 	innobackupex ${DBBAK_RESTORE_MEM} \
 		--apply-log --redo-only ${DBBAK_DBDIR}/
 
@@ -326,7 +355,7 @@ cmd_restore() {
  			echo "$me: restore incremental $inc of $nincr"
  			innobackupex ${DBBAK_RESTORE_MEM} \
  				--apply-log --redo-only ${DBBAK_DBDIR}/ \
- 				--incremental-dir=${DBBAK_INCRBASE}.${inc}${prev}
+ 				--incremental-dir=${incrbase}.${inc}
  			inc=$((inc + 1))
  		done
  	fi
@@ -343,13 +372,14 @@ cmd_restore() {
 }
 
 cmd_rotate() {
-	if [ ! -d ${DBBAK_FULL} ]; then
+
+	if [ ! -d ${DBBAK_CUR_FULL} ]; then
 		echo "$me: no full backup present in ${DBBAK_FULL}."
 		echo "$me: please run '$me full' before proceeding."
 		echo "$me: exiting."
 		exit 1;
 	fi
-	if [ -d ${DBBAK_PREV} ]; then
+	if [ -d ${DBBAK_PREV_FULL} ]; then
 		echo "$me: previous backup present in ${DBBAK_PREV}."
 		echo "$me: please run '$me purge' before proceeding."
 		echo "$me: exiting."
@@ -358,40 +388,47 @@ cmd_rotate() {
 
 	do_countdown "rotate";
 
-	for incr in ${DBBAK_INCRS}; do
-		DBBAK_ROTATE="${DBBAK_INCRBASE}.${incr}";
-		DBBAK_ROTATE_PREV="${DBBAK_INCRBASE}.${incr}.prev";
+	if [ ! -d "${DBBAK_PREV}" ]; then
+		mkdir ${DBBAK_PREV} \
+		|| err_exit "$me: problem creating ${DBBAK_PREV}. exiting.";
+	fi
 
-		DBBAK_ROTATE_LOG="${DBBAK_INCRBASE}.${incr}.log";
-		DBBAK_ROTATE_PREV_LOG="${DBBAK_INCRBASE}.${incr}.log.prev";
+	for incr in ${DBBAK_CUR_INCR_NOS}; do
 
-		DBBAK_ROTATE_STAMP="${DBBAK_INCRBASE}.${incr}.stamp";
-		DBBAK_ROTATE_PREV_STAMP="${DBBAK_INCRBASE}.${incr}.stamp.prev";
+		DBBAK_ROTATE_CUR="${DBBAK_CUR_INCRBASE}.${incr}";
+		DBBAK_ROTATE_CUR_LOG="${DBBAK_ROTATE_CUR}.log";
+		DBBAK_ROTATE_CUR_STAMP="${DBBAK_ROTATE_CUR}.stamp";
 
-		echo -n "$me: moving ${DBBAK_ROTATE} to ${DBBAK_ROTATE_PREV}: "
-		mv ${DBBAK_ROTATE} ${DBBAK_ROTATE_PREV}
-		[ "$?" -eq "0" ] && echo "ok." || echo "ERROR!"
+		DBBAK_ROTATE_PREV="${DBBAK_PREV_INCRBASE}.${incr}";
+		DBBAK_ROTATE_PREV_LOG="${DBBAK_ROTATE_PREV}.log";
+		DBBAK_ROTATE_PREV_STAMP="${DBBAK_ROTATE_PREV}.stamp";
 
-		echo -n "$me: moving ${DBBAK_ROTATE_LOG} to ${DBBAK_ROTATE_PREV_LOG}: "
-		mv ${DBBAK_ROTATE_LOG} ${DBBAK_ROTATE_PREV_LOG}
-		[ "$?" -eq "0" ] && echo "ok." || echo "ERROR!"
+		echo -n "$me: moving ${DBBAK_ROTATE_CUR}: "
 
-		echo -n "$me: moving ${DBBAK_ROTATE_STAMP} to ${DBBAK_ROTATE_PREV_STAMP}: "
-		mv ${DBBAK_ROTATE_STAMP} ${DBBAK_ROTATE_PREV_STAMP}
-		[ "$?" -eq "0" ] && echo "ok." || echo "ERROR!"
+		mv ${DBBAK_ROTATE_CUR} ${DBBAK_ROTATE_PREV}
+		[ "$?" -eq "0" ] || err_exit "ERROR!"
+
+		mv ${DBBAK_ROTATE_CUR_LOG} ${DBBAK_ROTATE_PREV_LOG}
+		[ "$?" -eq "0" ] || err_exit "ERROR!"
+
+		mv ${DBBAK_ROTATE_CUR_STAMP} ${DBBAK_ROTATE_PREV_STAMP}
+		[ "$?" -eq "0" ] || err_exit "ERROR!"
+
+		echo "ok."
+
 	done
 
-	echo -n "$me: moving ${DBBAK_FULL} to ${DBBAK_PREV}: "
-	mv ${DBBAK_FULL} ${DBBAK_PREV}
-	[ "$?" -eq "0" ] && echo "ok." || echo "ERROR!"
+	echo -n "$me: moving ${DBBAK_CUR_FULL}: "
+	mv ${DBBAK_CUR_FULL} ${DBBAK_PREV_FULL}
+	[ "$?" -eq "0" ] && echo "ok." || err_exit "ERROR!"
 
-	echo -n "$me: moving ${DBBAK_FULL_LOG} to ${DBBAK_PREV_LOG}: "
-	mv ${DBBAK_FULL_LOG} ${DBBAK_PREV_LOG}
-	[ "$?" -eq "0" ] && echo "ok." || echo "ERROR!"
+	echo -n "$me: moving ${DBBAK_CUR_FULL_LOG}:"
+	mv ${DBBAK_CUR_FULL_LOG} ${DBBAK_PREV_FULL_LOG}
+	[ "$?" -eq "0" ] && echo "ok." || err_exit "ERROR!"
 
-	echo -n "$me: moving ${DBBAK_FULL_STAMP} to ${DBBAK_PREV_STAMP}: "
-	mv ${DBBAK_FULL_STAMP} ${DBBAK_PREV_STAMP}
-	[ "$?" -eq "0" ] && echo "ok." || echo "ERROR!"
+	echo -n "$me: moving ${DBBAK_CUR_FULL_STAMP}: "
+	mv ${DBBAK_CUR_FULL_STAMP} ${DBBAK_PREV_FULL_STAMP}
+	[ "$?" -eq "0" ] && echo "ok." || err_exit "ERROR!"
 
 }
 
@@ -405,20 +442,22 @@ cmd_purge() {
 
 	do_countdown "purge";
 
-	set_prevs;
+	for incr in ${DBBAK_PREV_INCR_NOS}; do
 
-	for incr in ${DBBAK_PREVS}; do
-		echo "PREV: ${prev}"
-		DBBAK_ROTATE_PREV="${DBBAK_INCRBASE}.${incr}.prev";
-		DBBAK_ROTATE_PREV_LOG="${DBBAK_INCRBASE}.${incr}.log.prev";
-		DBBAK_ROTATE_PREV_STAMP="${DBBAK_INCRBASE}.${incr}.stamp.prev";
-		echo -n "$me: removing ${DBBAK_ROTATE_PREV} ${DBBAK_ROTATE_PREV_LOG} ${DBBAK_ROTATE_PREV_STAMP}: "
-		rm -rf ${DBBAK_ROTATE_PREV} ${DBBAK_ROTATE_PREV_LOG} ${DBBAK_ROTATE_PREV_STAMP}
-		[ "$?" -eq "0" ] && echo "ok." || echo "ERROR!"
+		DBBAK_ROTATE_PREV="${DBBAK_PREV_INCRBASE}.${incr}";
+		DBBAK_ROTATE_PREV_LOG="${DBBAK_ROTATE_PREV}.log";
+		DBBAK_ROTATE_PREV_STAMP="${DBBAK_ROTATE_PREV}.stamp";
+
+		echo -n "$me: removing ${DBBAK_ROTATE_PREV}: "
+		rm -rf ${DBBAK_ROTATE_PREV} ${DBBAK_ROTATE_PREV_LOG} \
+			${DBBAK_ROTATE_PREV_STAMP}
+
+		[ "$?" -eq "0" ] && echo "ok." || err_exit "ERROR!"
 	done
 
-	echo -n "$me: removing ${DBBAK_PREV} ${DBBAK_PREV_LOG} ${DBBAK_PREV_STAMP}: "
-	rm -rf ${DBBAK_PREV} ${DBBAK_PREV_LOG} ${DBBAK_PREV_STAMP}
+	echo -n "$me: removing ${DBBAK_PREV_FULL}: "
+	rm -rf ${DBBAK_PREV_FULL} ${DBBAK_PREV_FULL_LOG} \
+		${DBBAK_PREV_FULL_STAMP}
 	[ "$?" -eq "0" ] && echo "ok." || echo "ERROR!"
 }
 

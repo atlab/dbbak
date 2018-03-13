@@ -26,7 +26,7 @@ exists, a warning message is printed and the script exits with an
 error; see 'backup rotation' for further details about managing
 this situation.
 
-Backup details will be logged to DBBAK_BKDIR/full.log.
+Backup details will be logged to DBBAK_BKDIR/cur/full.log.
 
 Setting DBBAK_NOLOCK to any value will imply that innobackupex
 should use the '--no-lock' argument; the same setting also applies
@@ -48,12 +48,13 @@ Synopsis:
 To create an incremental backup based from the existing full backup
 or the most recent subsequent incremental backup, run `dbbak incremental`.
 
-The script will check for the presence of DBBAK_BKDIR/full and
-DBBAK_BKDIR/incr.0 through DBBAK_BKDIR/incr.999 in order to determine
-the most recent backup to base the incremental on, and proceed using
-innobackupex's incremental backup capabilities, storing the backup
-in DBBAK_BKDIR/incr.N where N is the value of 1+ the most recent incremental
-backup, or 0 in the event that only a full backup is currently available.
+The script will check for the presence of DBBAK_BKDIR/cur/full and
+DBBAK_BKDIR/cur/incr.0 through DBBAK_BKDIR/cur/incr.999 in order
+to determine the most recent backup to base the incremental on, and
+proceed using innobackupex's incremental backup capabilities, storing
+the backup in DBBAK_BKDIR/incr.N where N is the value of 1+ the
+most recent incremental backup, or 0 in the event that only a full
+backup is currently available.
 
 If no full or incremental backups are available to use in construction
 of the new incremental backup, the script will exit with an error. 
@@ -67,7 +68,7 @@ policy storing base+incrementals stored in DBBAK_BKDIR and therefore
 views such a situation as an administrative error which should be
 corrected.
 
-Backup details will be logged to DBBAK_BKDIR/incr.N.log.
+Backup details will be logged to DBBAK_BKDIR/cur/incr.N.log.
 
 backup restoration
 ------------------
@@ -103,18 +104,18 @@ incremental`.
 
 Since dbbak views the current full backup and its related incrementals
 as a set, the rotation is performed on the entire collection of
-existing backups, such that DBBAK_BKDIR/full becomes DBBAK_BKDIR/full.prev,
-and the associated incremental backups DBBAK_BKDIR/incr.N become
-DBBAK_BKDIR/incr.N.prev, etc. Logfiles are also rotated according
-to the same scheme.
+existing backups, such that DBBAK_BKDIR/cur/full becomes
+DBBAK_BKDIR/prev/full, and the associated incremental backups
+DBBAK_BKDIR/cur/incr.N become DBBAK_BKDIR/prev/incr.N.prev, etc.
+Logfiles are also rotated according to the same scheme.
 
 The `dbbak` script only manages one rotation of the backup set;
 that is to say that at any given time, there can only be the live
-backup and the '.prev' copy. If further retention of database backups
-is desired, this should be managed via a second-tier backup scheme
-of the dbbak backup files.  In accordance with this expectation,
+backup in 'cur' and the 'prev' copy. If further retention of database
+backups is desired, this should be managed via a second-tier backup
+scheme of the dbbak backup files.  In accordance with this expectation,
 the `dbbak rotate` command will exit with an error if an existing
-'.prev' set exists; the `dbbak purge` command discussed below can
+set of 'prev' files; the `dbbak purge` command discussed below can
 be used in this situation to remove the existing previous backup
 set and prepare for subsequent rotation.
 
@@ -128,7 +129,7 @@ Synopsis:
 To remove the previous backup set from the backup storage area, run
 the command `dbbak purge`.
 
-This command removes all .prev backups created via `dbbak rotate`,
+This command removes all 'prev' backups created via `dbbak rotate`,
 and should be used to prepare the backup area for a subsequent
 rotation of the active backup set.
 
@@ -158,6 +159,5 @@ Other commands include:
 
   - ls: list backups.
 
-Runs 'ls -lart' within DBBAK_BKDIR. If additional arguments are
-provided, dbbak will instead run 'ls -dlart $*'
+Runs 'ls -dlart' for DBBAK_BKDIR/cur/* and DBBAK_BKDIR/prev/*. 
 

@@ -8,4 +8,5 @@
 # DBBAK_GROUP=mysql
 # DBBAK_MODE=750  # ${DBBAK_DBDIR} permissions
 # # DBBAK_NOLOCK=true  # set if --no-lock desired
+# # DBBAK_NTHREAD=2  # set N if --parallel=N desired
 # # DBBAK_RESTORE_MEM= # set value for innobackupex --use-memory if desired

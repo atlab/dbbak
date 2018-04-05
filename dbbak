@@ -85,6 +85,8 @@ parse_cfg() {
 	[ -z "${DBBAK_OWNER}" ] && cfg_exit "DBBAK_OWNER"
 	[ -z "${DBBAK_GROUP}" ] && cfg_exit "DBBAK_GROUP"
 	[ -z "${DBBAK_MODE}" ] && cfg_exit "DBBAK_MODE"
+	[ ! -z "${DBBAK_NTHREAD}" ] \
+		&& DBBAK_NTHREAD="--parallel=${DBBAK_NTHREAD}"
 	[ ! -z "${DBBAK_NOLOCK}" ] && DBBAK_NOLOCK="--no-lock"
 	[ ! -z "${DBBAK_RESTORE_MEM}" ] \
 		&& DBBAK_RESTORE_MEM="--use-memory=$DBBAK_RESTORE_MEM" \
@@ -154,6 +156,7 @@ cmd_full() {
 		--password=${DBBAK_PASSWORD} \
 		--socket=${DBBAK_SOCKET} \
 		${DBBAK_NOLOCK} \
+		${DBBAK_NTHREAD} \
 		--no-timestamp ${DBBAK_CUR_FULL} >> ${DBBAK_CUR_FULL_LOG} 2>&1;
 
 	return=$?
@@ -207,6 +210,7 @@ cmd_incremental() {
 		--password=${DBBAK_PASSWORD} \
 		--socket=${DBBAK_SOCKET} \
 		${DBBAK_NOLOCK} \
+		${DBBAK_NTHREAD} \
 		--no-timestamp \
 		--incremental-basedir=${DBBAK_CUR_LAST} \
 		--incremental ${DBBAK_CUR_INCR} \

@@ -432,7 +432,7 @@ cmd_rotate() {
 	mv ${DBBAK_CUR_FULL} ${DBBAK_PREV_FULL}
 	[ "$?" -eq "0" ] && echo "ok." || err_exit "ERROR!"
 
-	echo -n "$me: moving ${DBBAK_CUR_FULL_LOG}:"
+	echo -n "$me: moving ${DBBAK_CUR_FULL_LOG}: "
 	mv ${DBBAK_CUR_FULL_LOG} ${DBBAK_PREV_FULL_LOG}
 	[ "$?" -eq "0" ] && echo "ok." || err_exit "ERROR!"
 

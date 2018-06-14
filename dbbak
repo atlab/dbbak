@@ -101,8 +101,8 @@ parse_cfg() {
 	[ ! -z "${DBBAK_SLAVE}" ] \
 		&& DBBAK_SLAVE="--safe-slave-backup"
 
-	[ ! -z "${DBBAK_MONITOR_SERVER}" ] && DBBAK_MONITOR_SERVER=''
-	[ ! -z "${DBBAK_MONITOR_NAME}" ] && DBBAK_MONITOR_NAME=''
+	[ -z "${DBBAK_MONITOR_SERVER}" ] && DBBAK_MONITOR_SERVER=''
+	[ -z "${DBBAK_MONITOR_NAME}" ] && DBBAK_MONITOR_NAME=''
 
 	DBBAK_CUR="${DBBAK_BKDIR}/cur"
 	DBBAK_CUR_FULL="${DBBAK_BKDIR}/cur/full"

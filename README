@@ -161,9 +161,9 @@ Synopsys:
   # dbbak trap
 
 The 'dbbak stat' command will iterate over known logs in cur/prev
-directories, and check the last 1000 lines of the most recently modified
-file for a line matching the expression '^[0-9].*completed OK', printing
-any matches.
+directories, and check the last 1000 lines of the most recently
+modified file for a line matching the expression '^[0-9].*completed
+OK', printing any matches.
 
 In a successful run, this should normally match lines such as::
 
@@ -171,13 +171,17 @@ In a successful run, this should normally match lines such as::
 
 indicating that the xtrabackup run completed successfully.
 
-The 'dbbak trap' command will use the values of DBBAK_MONITOR_SERVER and
-of DBBAK_MONITOR_NAME as set in the configuration file to send 'dbbak stat'
-output to the configured DBBAK_MONITOR_SERVER using zabbix_send.
+The 'dbbak trap' command will use the values of DBBAK_MONITOR_SERVER
+and of DBBAK_MONITOR_NAME as set in the configuration file to send
+'dbbak stat' output to the configured DBBAK_MONITOR_SERVER using
+zabbix_send.
 
-To monitor backup status, a text item of MySQL.backup-status shuld
+To monitor backup status, a text trapper item of MySQL.backup-status shuld
 be created in zabbix, with triggers data updates and for string
-matching on 'OK' values. 
+matching on 'OK' values. For example::
+
+  {dbserver:MySQL.backup-status.nodata(46800)}=1
+  {MySQL.backup-status.str(OK,#1)}=0
 
 It is important to note that this scheme is not logically airtight
 since if no backups are triggered, a previous successful logfile

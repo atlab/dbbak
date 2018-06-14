@@ -11,5 +11,5 @@
 # # DBBAK_SLAVE=true # set *to anything* if running on slave
 # # DBBAK_NTHREAD=2  # set N if --parallel=N desired
 # # DBBAK_RESTORE_MEM= # set value for innobackupex --use-memory if desired
-# # DBBAK_MONITOR_SERVER= # set to zabbix server name for 'dbbak trap'
-# # DBBAK_MONITOR_NAME= # set to zabbix node display for 'dbbak trap'
+# # DBBAK_MONITOR_SERVER= # zabbix server name for 'dbbak trap'
+# # DBBAK_MONITOR_NAME= # zabbix node for 'dbbak trap'

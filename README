@@ -152,6 +152,41 @@ A companion file, dbbak.crontab, configures a basic schedule for
 this script, executing the full run at 2AM on sundays and the
 incremental run at 2AM on all other days.
 
+status / monitoring
+-------------------
+
+Synopsys:
+
+  # dbbak stat
+  # dbbak trap
+
+The 'dbbak stat' command will iterate over known logs in cur/prev
+directories, and check the last 1000 lines of the most recently modified
+file for a line matching the expression '^[0-9].*completed OK', printing
+any matches.
+
+In a successful run, this should normally match lines such as::
+
+  180614 12:06:09 completed OK!
+
+indicating that the xtrabackup run completed successfully.
+
+The 'dbbak trap' command will use the values of DBBAK_MONITOR_SERVER and
+of DBBAK_MONITOR_NAME as set in the configuration file to send 'dbbak stat'
+output to the configured DBBAK_MONITOR_SERVER using zabbix_send.
+
+To monitor backup status, a text item of MySQL.backup-status shuld
+be created in zabbix, with triggers data updates and for string
+matching on 'OK' values. 
+
+It is important to note that this scheme is not logically airtight
+since if no backups are triggered, a previous successful logfile
+will provide an updated OK status value to the monitoring system.
+A more robust mechanism would process the status value locally and
+ensure that the last 'completed OK' log message occurred within
+some specified time window, reporting the interpreted status to the
+server.
+
 misc
 ----
 

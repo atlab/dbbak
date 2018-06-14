@@ -89,6 +89,9 @@ parse_cfg() {
 	[ -z "${DBBAK_OWNER}" ] && cfg_exit "DBBAK_OWNER"
 	[ -z "${DBBAK_GROUP}" ] && cfg_exit "DBBAK_GROUP"
 	[ -z "${DBBAK_MODE}" ] && cfg_exit "DBBAK_MODE"
+
+	# optional, so no warning	
+
 	[ ! -z "${DBBAK_NTHREAD}" ] \
 		&& DBBAK_NTHREAD="--parallel=${DBBAK_NTHREAD}"
 	[ ! -z "${DBBAK_NOLOCK}" ] && DBBAK_NOLOCK="--no-lock"
@@ -97,6 +100,9 @@ parse_cfg() {
 		|| DBBAK_RESTORE_MEM=""
 	[ ! -z "${DBBAK_SLAVE}" ] \
 		&& DBBAK_SLAVE="--safe-slave-backup"
+
+	[ ! -z "${DBBAK_MONITOR_SERVER}" ] && DBBAK_MONITOR_SERVER=''
+	[ ! -z "${DBBAK_MONITOR_NAME}" ] && DBBAK_MONITOR_NAME=''
 
 	DBBAK_CUR="${DBBAK_BKDIR}/cur"
 	DBBAK_CUR_FULL="${DBBAK_BKDIR}/cur/full"
@@ -265,6 +271,25 @@ cmd_ls() {
 		&& ls -dlart args ${DBBAK_PREV#${DBBAK_BKDIR}/}/* \
 				${DBBAK_CUR#${DBBAK_BKDIR}/}/* \
 			2>/dev/null || true )
+}
+
+cmd_stat() {
+	last_log=`
+	( cd ${DBBAK_BKDIR} \
+		&& ls -rt args ${PWD}/${DBBAK_PREV#${DBBAK_BKDIR}/}/*.log \
+				${PWD}/${DBBAK_CUR#${DBBAK_BKDIR}/}/*.log \
+			2>/dev/null |tail -n 1|| true )
+	`;
+
+	# looking for e.g. "180409 15:48:06 completed OK!"
+	last_ok=`tail -n 1000 $last_log|grep '^[0-9].*completed'`;
+	echo $last_ok;
+}
+
+cmd_trap() {
+	zabbix_sender -z ${DBBAK_MONITOR_SERVER} \
+		-s ${DBBAK_MONITOR_NAME} -k MySQL.backup-status \
+		-o "`$0 stat`";
 }
 
 cmd_restore() {
@@ -487,6 +512,8 @@ case $verb in
 	"full") parse_cfg; cmd_full;;
 	"incremental") parse_cfg; cmd_incremental;;
 	"ls") parse_cfg; cmd_ls $*;;
+	"stat") parse_cfg; cmd_stat $*;;
+	"trap") parse_cfg; cmd_trap $*;;
 	"restore") parse_cfg; cmd_restore $*;;
 	"rotate") parse_cfg; cmd_rotate;;
 	"purge") parse_cfg; cmd_purge;;

@@ -1,3 +1,4 @@
 # dbbak.crontab: weekly-full and daily-incremental crontab
 1 2 * * 0 /usr/local/bin/dbbak.cron weekly
 1 2 * * 1-6 /usr/local/bin/dbbak.cron daily
+1 12 * * * /usr/local/bin/dbbak trap > /dev/null 2>&1

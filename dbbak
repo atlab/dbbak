@@ -11,12 +11,12 @@ usage_exit() {
 }
 
 cfg_exit() {
-	echo "$me: invalid configuration: missing $1";
+	echo "$me: invalid configuration: missing $1" >&2;
 	exit 1;
 }
 
 cfg_warn() {
-	echo "$me: note: missing $1";
+	echo "$me: note: missing $1" >&2;
 }
 
 err_exit() {

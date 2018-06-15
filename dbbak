@@ -6,7 +6,7 @@ PATH="${PATH}:/usr/local/sbin:/usr/local/bin:"
 export PATH;
 
 usage_exit() {
-	echo "usage: $me [full|incremental|ls|restore|rotate|purge]"
+	echo "usage: $me [full|incremental|ls|stat|trap|restore|rotate|purge]"
 	exit 0;
 }
 

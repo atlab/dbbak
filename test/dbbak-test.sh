@@ -1,0 +1,12 @@
+#! /bin/sh
+dbbak ls
+dbbak full
+dbbak ls
+dbbak incremental
+dbbak ls
+dbbak incremental
+dbbak ls
+dbbak rotate
+dbbak ls
+dbbak purge
+dbbak ls

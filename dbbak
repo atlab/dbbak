@@ -373,7 +373,7 @@ cmd_restore() {
 	do_countdown "wipe/recreate of ${DBBAK_DBDIR}"
 
 	echo "$me: copying full backup from $base"
-	rsync -avHS --delete ${base}/ ${DBBAK_DBDIR}/
+	rsync -avHSW --delete ${base}/ ${DBBAK_DBDIR}/
 
 	echo "$me: appyling logs to full backup"
 

@@ -1,2 +1,14 @@
 - multi support: config env var or default...
 - better/cleaner handling of rotation variables
+- parallelize reloading
+  e.g xtrabackup --copy-back --paralell=4 --target-dir=/mnt/db_backup/cur/full/  --datadir=/mnt/database/var2/lib/mysql
+
+  note: copyback expects prepared backup, so best to find another means
+  (see also msrsync)
+- safety hook if needed to prevent starting on unprepared copyback
+  (relates to dbbak script)
+
+- at-database, restore restore path cfg audit
+  (e.g. /mnt/database/var1 vs  /mnt/database/var1/lib/mysql & log/mysql)
+  get from the mysql conf cmd?
+

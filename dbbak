@@ -99,7 +99,7 @@ parse_cfg() {
 		&& DBBAK_RESTORE_MEM="--use-memory=$DBBAK_RESTORE_MEM" \
 		|| DBBAK_RESTORE_MEM=""
 	[ ! -z "${DBBAK_SLAVE}" ] \
-		&& DBBAK_SLAVE="--safe-slave-backup"
+		&& DBBAK_SLAVE="--safe-slave-backup --slave-info"
 
 	[ -z "${DBBAK_MONITOR_SERVER}" ] && DBBAK_MONITOR_SERVER=''
 	[ -z "${DBBAK_MONITOR_NAME}" ] && DBBAK_MONITOR_NAME=''

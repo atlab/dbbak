@@ -6,7 +6,16 @@ PATH="${PATH}:/usr/local/sbin:/usr/local/bin:"
 export PATH;
 
 usage_exit() {
-	echo "usage: $me [full|incremental|ls|stat|trap|restore|rotate|purge]"
+	echo "$me usage:"
+	echo ""
+	echo "  xtrabackup commands:"
+	echo ""
+	echo "    $me [full|incremental|ls|stat|trap|restore|rotate|purge]"
+	echo ""
+	echo "  lvm snapshot commands:"
+	echo ""
+	echo "    $me [lvmsnap|lvmls|lvmpurge]"
+	echo ""
 	exit 0;
 }
 
@@ -78,6 +87,32 @@ set_incrs() {
 
 }
 
+
+set_lvsnaps() {
+
+	DBBAK_LVM_BASE="${DBBAK_LVM_SNAP_VG}/${DBBAK_LVM_SNAP_LV}"
+
+	set -- ${DBBAK_LVM_BASE}-s[0-9] \
+		${DBBAK_LVM_BASE}-s[0-9][0-9] \
+		${DBBAK_LVM_BASE}-s[0-9][0-9][0-9];
+
+	DBBAK_LVM_MAX_SNAP_NO='-1'; DBBAK_LVM_SNAP_NOS='';
+
+	for x; do
+		if [ -b "${x}" ]; then
+			id=${x##*-s};  # id is trailing digits after '-s'
+			DBBAK_LVM_SNAP_NOS="$DBBAK_LVM_SNAP_NOS $id"
+
+			[ "$id" -gt "$DBBAK_LVM_MAX_SNAP_NO" ] \
+				&& DBBAK_LVM_MAX_SNAP_NO="$id"
+		fi
+	done
+
+	DBBAK_LVM_SNAP_NO=$((DBBAK_LVM_MAX_SNAP_NO + 1))
+	DBBAK_LVM_SNAP="${DBBAK_LVM_BASE}-s${DBBAK_LVM_SNAP_NO}"
+}
+
+
 parse_cfg() {
 	cfg="/etc/${me}.cfg"
 	[ ! -f "$cfg" ] && cfg_exit $cfg || . $cfg
@@ -100,6 +135,18 @@ parse_cfg() {
 		|| DBBAK_RESTORE_MEM=""
 	[ ! -z "${DBBAK_SLAVE}" ] \
 		&& DBBAK_SLAVE="--safe-slave-backup --slave-info"
+
+	# TODO: LVM SNAP
+	[ -z "${DBBAK_LVM_SNAP}" ] && DBBAK_LVM_SNAP=''
+	[ -z "${DBBAK_LVM_SNAP_VG}" ] && DBBAK_LVM_SNAP_VG=''
+	[ -z "${DBBAK_LVM_SNAP_LV}" ] && DBBAK_LVM_SNAP_LV=''
+	[ -z "${DBBAK_LVM_SNAP_NS}" ] && DBBAK_LVM_SNAP_NS=0
+	[ -z "${DBBAK_LVM_SNAP_SZ}" ] && DBBAK_LVM_SNAP_NS=''
+	# FIXME: check snap ^ nolock; error
+#	[ ! -z "${DBBAK_NOLOCK}" -a ! -z "${DBBAK_LVM_SNAP}" ] \
+#		&& err_exit "options DBBAK_NOLOCK and DBBAK_LVM_SNAP conflict."
+
+	# TODO: check snap sub-parms are logical
 
 	[ -z "${DBBAK_MONITOR_SERVER}" ] && DBBAK_MONITOR_SERVER=''
 	[ -z "${DBBAK_MONITOR_NAME}" ] && DBBAK_MONITOR_NAME=''
@@ -263,6 +310,112 @@ cmd_incremental() {
 
 		echo "# ok." 2>&1 |tee -a ${DBBAK_CUR_INCR_LOG};
 	fi
+}
+
+
+cmd_lvmsnap(){
+        set_lvsnaps;
+
+	lckf="/tmp/dbbak.dblock.lock";
+	if [ -f "${lckf}" ]; then
+		err_exit "lvsnap lockfile ${lckf} exists. exiting.";
+	fi
+
+	# lock the db & flush data
+	( mysql -S ${DBBAK_SOCKET} -e "
+		flush tables with read lock;
+		select 'db locked' into outfile '${lckf}';
+		select sleep(30);
+		unlock tables;";
+	  sync; sync; sync;
+	) > /dev/null 2>&1 &
+
+	# and make the snapshot
+
+        echo -n "# $me: creating snapshot ${DBBAK_LVM_SNAP}: "
+
+        DBBAK_LVM_SNAP_STATUS=""  # XXX/TODO: break infinite loop?
+	while [ -z "${DBBAK_LVM_SNAP_STATUS}" ]; do
+		if [ -f "${lckf}" ]; then
+			DBBAK_LVM_SNAP_OUT=`lvcreate -s ${DBBAK_LVM_BASE} \
+				-n ${DBBAK_LVM_SNAP} \
+				-L ${DBBAK_LVM_SNAP_SZ} 2>&1`
+			DBBAK_LVM_SNAP_STATUS=$?
+			rm -f ${lckf}
+		fi
+		sleep 1;
+	done
+
+        [ "${DBBAK_LVM_SNAP_STATUS}" -eq "0" ] \
+		&& echo "ok." || echo "ERROR!: ${DBBAK_LVM_SNAP_OUT}"
+
+        return ${DBBAK_LVM_SNAP_STATUS}
+}
+
+
+cmd_lvmls() {
+	set_lvsnaps;
+	devlist="${DBBAK_LVM_BASE}"
+	for l in ${DBBAK_LVM_SNAP_NOS}; do
+		devlist="${devlist} ${DBBAK_LVM_BASE}-s${l}"
+	done
+	lvs $devlist
+	return $?
+}
+
+
+cmd_lvmpurge(){
+
+	status=0
+
+	set_lvsnaps;
+
+	echo -n "# $me: removing LVM snapshots:"
+
+	# partition snaps into keep and remove lists by DBBAK_LVM_SNAP_NS
+	i=0; keeplist=""; zaplist=""
+	for s in `echo ${DBBAK_LVM_SNAP_NOS} | rev`; do
+		if [ "$i" -lt "$DBBAK_LVM_SNAP_NS" ]; then
+			keeplist="${keeplist} ${s}"
+		else
+			zaplist="${zaplist} ${s}"
+		fi
+		i=$((i + 1))
+	done
+
+	if [ -z "$zaplist" ]; then
+		echo " ok. no cleanup needed."
+		return 0;
+	fi
+
+	echo ""
+	echo "# .. will remove:${zaplist}"
+	for z in $zaplist; do  # remove remove snaps
+		echo -n "# .. removing $z: "
+		out=`lvremove -f ${DBBAK_LVM_BASE}-s${z} 2>&1`; outv=$?
+
+		[ "$outv" -eq "0" ] && echo "ok." || echo "ERROR!: ${renameout}"
+		status=$((status + $outv))
+	done
+
+	nk=0  # renumber remaining snaps
+	for k in `echo $keeplist|rev`; do
+		if [ "$k" -eq "$nk" ]; then  # numbers line up - no rotation
+			nk=$((nk + 1)); continue
+		fi
+
+		echo -n "# .. renaming $k to $nk: "
+		out=`lvrename ${DBBAK_LVM_BASE}-s${k} \
+			${DBBAK_LVM_BASE}-s${nk} 2>&1`; outv=$?
+
+		[ "$outv" -eq "0" ] && echo "ok." || echo "ERROR!: ${renameout}"
+		status=$((status + $outv))
+		nk=$((nk + 1))
+	done
+
+	[ "$status" -eq "0" ] && echo "# .. ok." || echo "# .. ERROR!"
+	return $status;
+
 }
 
 cmd_ls() {
@@ -511,6 +664,9 @@ verb=$1; shift;
 case $verb in
 	"full") parse_cfg; cmd_full;;
 	"incremental") parse_cfg; cmd_incremental;;
+	"lvmsnap") parse_cfg; cmd_lvmsnap;;
+	"lvmls") parse_cfg; cmd_lvmls;;
+	"lvmpurge") parse_cfg; cmd_lvmpurge;;
 	"ls") parse_cfg; cmd_ls $*;;
 	"stat") parse_cfg; cmd_stat $*;;
 	"trap") parse_cfg; cmd_trap $*;;

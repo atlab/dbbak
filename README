@@ -5,9 +5,15 @@ dbbak
 This module contains `dbbak`, a simple shell script for managing
 full/incremental backup of MySQL with innobackupex.
 
-Currently, the script can handle full and incremental backup of a
-single MySQL instance, as well as rotation/purge of a single set
-of full+incremental backups.
+Currently, the script handles two main functionalities:
+
+  - Full/incremental backup/rotation/purge/restore of a single MySQL instance
+    using percona 'xtrabackup'.
+  - Backup/purge/rotation of a single MySQL instance using LVM snapshots
+
+LVM snapshot related commands/parameters are currently prefixed
+with 'lvm' and also documented here under 'lvm' related sections
+since the two mechanisms are somewhat different.
 
 Database connection and backup store parameters are stored in the
 file /etc/dbbak.cfg, with commands/usage as follows.
@@ -141,6 +147,8 @@ Synposys:
    # dbbak.cron daily
    # dbbak.cron weekly
 
+Note: currently only implemented for xtrabackup related backups
+
 The 'dbbak.cron' script provides a driver mechanism to run dbbak
 to maintain weekly full and daily incremental backups, with
 rotation/purge steps occuring prior to the weekly full run.
@@ -159,6 +167,8 @@ Synopsys:
 
   # dbbak stat
   # dbbak trap
+
+Note: currently only implemented for xtrabackup related backups:w
 
 The 'dbbak stat' command will iterate over known logs in cur/prev
 directories, and check the last 1000 lines of the most recently
@@ -190,6 +200,56 @@ A more robust mechanism would process the status value locally and
 ensure that the last 'completed OK' log message occurred within
 some specified time window, reporting the interpreted status to the
 server.
+
+lvm snapshot backup
+-------------------
+
+Synopsys:
+
+  # dbbak lvmsnap
+
+To use LVM snapshot backups, the 'lvmsnap' command can be used.
+
+This command will attempt to create a snapshot of the logical volume:
+
+  ${DBBAK_LVM_SNAP_VG}/${DBBAK_LVM_SNAP_LV}
+
+after obtaining a database write lock and syncing system buffers
+to disk.
+
+The snap will be named:
+
+  ${DBBAK_LVM_SNAP_VG}/${DBBAK_LVM_SNAP_LV}-sN
+
+where 'N' is the number of the first incrementally named snapshot
+available according to this convention, allocating this snapshot
+DBBAK_LVM_SNAP_SZ storage.
+
+lvm snapshot status
+-------------------
+
+Synopsys:
+
+  # dbbak lvmls
+
+This command uses the LVM `lvs` command to display information about
+currently available snapshot volumes.
+
+lvm snapshot rotation/purge
+---------------------------
+
+Synopsys:
+
+  # dbbak lvmpurge
+
+The 'dbbak lvmpurge' command uses the DBBAK_LVM_SNAP_NS value to
+determine the number of lvm snapshots to retain, removing other
+snapshots and renaming the remaining snapshots to increment from '-s0'.
+
+The removal is done from oldest to newest, such that the script
+will ensure that the DBBAK_LVM_SNAP_NS newest snapshots are available,
+and will be numbered from 0 to DBBAK_LVM_SNAP_NS-1 after a run is
+complete.
 
 misc
 ----

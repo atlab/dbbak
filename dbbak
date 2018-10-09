@@ -312,7 +312,7 @@ cmd_incremental() {
 	fi
 }
 
-# TODO: configurable lock timeout 
+# TODO: configurable lock timeout, database sleep value
 cmd_lvmsnap(){
         set_lvsnaps;
 
@@ -346,7 +346,7 @@ cmd_lvmsnap(){
 		fi
 		sleep 1;
 		nsleep=$((nsleep + 1))
-		if [ "$nsleep" -eq "30" ]; then
+		if [ "$nsleep" -eq "300" ]; then
 			DBBAK_LVM_SNAP_STATUS=1;
 			DBBAK_LVM_SNAP_OUT="table lock timeout";
 		fi

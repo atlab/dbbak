@@ -312,7 +312,7 @@ cmd_incremental() {
 	fi
 }
 
-
+# TODO: configurable lock timeout 
 cmd_lvmsnap(){
         set_lvsnaps;
 
@@ -334,7 +334,8 @@ cmd_lvmsnap(){
 
         echo -n "# $me: creating snapshot ${DBBAK_LVM_SNAP}: "
 
-        DBBAK_LVM_SNAP_STATUS=""  # XXX/TODO: break infinite loop?
+        DBBAK_LVM_SNAP_STATUS=""
+	nsleep=0;
 	while [ -z "${DBBAK_LVM_SNAP_STATUS}" ]; do
 		if [ -f "${lckf}" ]; then
 			DBBAK_LVM_SNAP_OUT=`lvcreate -s ${DBBAK_LVM_BASE} \
@@ -344,6 +345,11 @@ cmd_lvmsnap(){
 			rm -f ${lckf}
 		fi
 		sleep 1;
+		nsleep=$((nsleep + 1))
+		if [ "$nsleep" -eq "30" ]; then
+			echo "lvmsnap: table lock timeout";
+			DBBAK_LVM_SNAP_STATUS=-1;
+		fi
 	done
 
         [ "${DBBAK_LVM_SNAP_STATUS}" -eq "0" ] \

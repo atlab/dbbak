@@ -347,8 +347,8 @@ cmd_lvmsnap(){
 		sleep 1;
 		nsleep=$((nsleep + 1))
 		if [ "$nsleep" -eq "30" ]; then
-			echo "lvmsnap: table lock timeout";
-			DBBAK_LVM_SNAP_STATUS=-1;
+			DBBAK_LVM_SNAP_STATUS=1;
+			DBBAK_LVM_SNAP_OUT="table lock timeout";
 		fi
 	done
 

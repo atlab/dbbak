@@ -98,6 +98,42 @@ Support for choosing the backup to restore has not yet been implemented;
 please review the function body of cmd_restore and innobackupex documentation
 to determine appropriate steps in this case.
 
+initializing a slave from backup
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Restored backups have the files 'xtrabackup_binlog_info' and, if
+backed up from a slave, the file 'xtrabackup_slave_info'. These files
+contain the required information to use the restored data as a basis to
+start master/slave replication. To enable, retrieve the binlog file name
+and binlog position from the appropriate file, and execute a
+mysql `change master` statement - for example:
+
+    $ binlog=`awk '{print $1}' /var/lib/mysql/xtrabackup_binlog_info`
+    $ binpos=`awk '{print $2}' /var/lib/mysql/xtrabackup_binlog_info`
+    $ echo $binlog $binpos
+    mysql-bin.12345 87654321
+    $ mysql -u root
+    mysql> CHANGE MASTER TO
+    mysql> MASTER_HOST='192.168.1.10'
+    mysql> MASTER_USER='replication',
+    mysql> MASTER_PASSWORD='replication',
+    mysql> MASTER_LOG_FILE='$binlog',
+    mysql> MASTER_LOG_POS=$binpos;
+    mysql> start slave;
+    mysql> show slave status\G;
+
+If restoring from a backup built from a master,
+the `xtrabackup_binlog_info` file should be used. In the case of a
+backup built from a replica, the `xtrabackup_binlog_info` file will
+contain the log coordinates of the replica performing the backup,
+and the file `xtrabackup_slave_info` will contain the log coordinates
+of the replica's master server. The `xtrabackup_slave_info` values
+and master host, user and password relevant to the master should
+be used if the new replica should sync to the original master server,
+and the `xtrabackup_binlog_info` and backup replica's host, user,
+and password information should be used if the new replica should
+be a second-stage replica syncing from the backup replica.
+
 backup rotation
 ---------------
 

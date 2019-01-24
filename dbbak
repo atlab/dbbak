@@ -198,7 +198,7 @@ do_countdown() {
 cmd_full() {
 	
 	[ -d ${DBBAK_CUR_FULL} ] \
-		&& err_exit "$me: backup exists in ${DBBAK_FULL}. exiting."
+		&& err_exit "$me: backup exists in ${DBBAK_CUR_FULL}. exiting."
 
 	echo -n "$me: saving full backup to ${DBBAK_CUR_FULL}: "
 

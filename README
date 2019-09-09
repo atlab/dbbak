@@ -7,8 +7,8 @@ full/incremental backup of MySQL with innobackupex.
 
 Currently, the script handles two main functionalities:
 
-  - Full/incremental backup/rotation/purge/restore of a single MySQL instance
-    using percona 'xtrabackup'.
+  - Full/incremental backup/rotation/purge/restore of a single MySQL
+    instance using percona 'xtrabackup'.
   - Backup/purge/rotation of a single MySQL instance using LVM snapshots
 
 LVM snapshot related commands/parameters are currently prefixed

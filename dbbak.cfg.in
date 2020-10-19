@@ -2,6 +2,8 @@
 # DBBAK_USER=root
 # DBBAK_PASSWORD=database
 # DBBAK_SOCKET=/var/run/mysqld/mysqld.sock
+# # Note: DBBAK_DBDIR and DBBAK_BKDIR should be specified as examples
+# # (without trailing '/')
 # DBBAK_DBDIR=/var/lib/mysql
 # DBBAK_BKDIR=/var/backup/dbbk
 # DBBAK_OWNER=mysql
